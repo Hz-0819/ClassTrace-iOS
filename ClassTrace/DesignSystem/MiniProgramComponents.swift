@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 enum MPColor {
     static let blue = Color(red: 123 / 255, green: 163 / 255, blue: 192 / 255)
@@ -16,11 +17,34 @@ struct MPLegacyImage: View {
     var size: CGFloat = 24
 
     var body: some View {
-        Image(name)
-            .resizable()
-            .scaledToFit()
-            .frame(width: size, height: size)
-            .accessibilityHidden(true)
+        Group {
+            if let image = LegacyImageLoader.image(named: name) {
+                Image(uiImage: image).resizable().scaledToFit()
+            } else {
+                Image(systemName: "photo.badge.exclamationmark")
+                    .resizable().scaledToFit().foregroundStyle(MPColor.secondary)
+            }
+        }
+        .frame(width: size, height: size)
+        .accessibilityHidden(true)
+    }
+}
+
+@MainActor
+private enum LegacyImageLoader {
+    static func image(named name: String) -> UIImage? {
+        if let image = UIImage(named: name) { return image }
+        let directories = ["LegacyImages", "Resources/LegacyImages", nil]
+        for directory in directories {
+            if let url = Bundle.main.url(forResource: name, withExtension: "png", subdirectory: directory),
+               let image = UIImage(contentsOfFile: url.path) { return image }
+        }
+        if let root = Bundle.main.resourceURL,
+           let enumerator = FileManager.default.enumerator(at: root, includingPropertiesForKeys: nil),
+           let url = enumerator.compactMap({ $0 as? URL }).first(where: { $0.lastPathComponent.caseInsensitiveCompare("\(name).png") == .orderedSame }) {
+            return UIImage(contentsOfFile: url.path)
+        }
+        return nil
     }
 }
 

@@ -17,14 +17,44 @@ actor LocalDemoStore {
         if request.method == .get {
             if path == "home" { return try envelope(homePayload()) }
             if path == "business/overview" { return try envelope(businessPayload()) }
+            if path == "sessions" { return try envelope(filteredSessions(request.query)) }
+            if path == "hour-ledger" { return try envelope(state["hour-ledger"] as? [[String: Any]] ?? []) }
             if let key = collectionKey(for: path), path == key { return try envelope(items(key)) }
-            if let (key, id) = detailPath(path), let item = items(key).first(where: { $0["id"] as? String == id }) { return try envelope(item) }
+            if let (key, id) = detailPath(path), let item = items(key).first(where: { $0["id"] as? String == id }) {
+                if key == "classes" { return try envelope(enrichedClass(item)) }
+                return try envelope(item)
+            }
         }
 
         if request.method == .post, let key = collectionKey(for: path), path == key {
             let item = makeItem(key: key, input: try body(request))
             var values = items(key); values.insert(item, at: 0); state[key] = values
             try save(); return try envelope(item)
+        }
+
+        if request.method == .post, path == "sessions/generate" {
+            let input = try body(request)
+            guard let classId = input["classId"] as? String,
+                  let fromText = input["from"] as? String,
+                  let toText = input["to"] as? String,
+                  let startTime = input["startTime"] as? String else { return nil }
+            let weekdays = input["weekdays"] as? [Int] ?? []
+            let duration = input["durationMinutes"] as? Int ?? 60
+            let formatter = DateFormatter(); formatter.calendar = Calendar(identifier: .gregorian); formatter.locale = Locale(identifier: "en_US_POSIX"); formatter.dateFormat = "yyyy-MM-dd"
+            guard var day = formatter.date(from: fromText), let endDay = formatter.date(from: toText) else { return nil }
+            let timeParts = startTime.split(separator: ":").compactMap { Int($0) }
+            var sessions = items("sessions"); var created = 0
+            while day <= endDay {
+                let calendarDay = Calendar.current.component(.weekday, from: day)
+                let mondayBased = ((calendarDay + 5) % 7) + 1
+                if weekdays.contains(mondayBased), timeParts.count == 2,
+                   let startsAt = Calendar.current.date(bySettingHour: timeParts[0], minute: timeParts[1], second: 0, of: day) {
+                    let input: [String: Any] = ["classId": classId, "startsAt": Self.date(startsAt), "endsAt": Self.date(startsAt.addingTimeInterval(Double(duration * 60)))]
+                    sessions.append(makeItem(key: "sessions", input: input)); created += 1
+                }
+                day = Calendar.current.date(byAdding: .day, value: 1, to: day) ?? endDay.addingTimeInterval(1)
+            }
+            state["sessions"] = sessions; try save(); return try envelope(["created": created, "requested": created])
         }
 
         if request.method == .patch, let (key, id) = detailPath(path) {
@@ -41,6 +71,40 @@ actor LocalDemoStore {
         }
 
         let parts = path.split(separator: "/").map(String.init)
+        if request.method == .post, parts.count == 3, parts[0] == "classes", parts[2] == "members" {
+            let input = try body(request); guard let studentId = input["studentId"] as? String else { return nil }
+            let initial = Self.number(input["initialHours"]); let price = Self.number(input["pricePerHour"])
+            var member: [String: Any] = ["id":UUID().uuidString,"classId":parts[1],"studentId":studentId,"status":"APPROVED","totalHours":initial,"consumedHours":0,"remainingHours":initial,"pricePerHour":price]
+            member["student"] = items("students").first { $0["id"] as? String == studentId }
+            _ = try updateItem("classes", id: parts[1]) { item in var copy=item;var values=copy["members"] as? [[String:Any]] ?? [];values.append(member);copy["members"]=values;return copy }
+            return try envelope(member)
+        }
+        if (request.method == .patch || request.method == .delete), parts.count == 4, parts[0] == "classes", parts[2] == "members" {
+            let input = try body(request); var returned: [String:Any] = [:]
+            _ = try updateItem("classes", id: parts[1]) { item in var copy=item;var values=copy["members"] as? [[String:Any]] ?? [];if request.method == .delete { values.removeAll { $0["id"] as? String == parts[3] } } else if let i=values.firstIndex(where:{$0["id"] as? String == parts[3]}) { for(k,v) in input where !(v is NSNull){values[i][k]=v};returned=values[i] };copy["members"]=values;return copy }
+            return try envelope(request.method == .delete ? NSNull() : returned)
+        }
+        if request.method == .post, path == "classes/join" {
+            let input=try body(request);guard let code=input["inviteCode"] as? String,let studentId=input["studentId"] as? String,let classroom=items("classes").first(where:{($0["inviteCode"] as? String)?.uppercased()==code.uppercased()}),let classId=classroom["id"] as? String else{return nil}
+            var member:[String:Any]=["id":UUID().uuidString,"classId":classId,"studentId":studentId,"status":"APPROVED","totalHours":0,"consumedHours":0,"remainingHours":0,"pricePerHour":0];member["student"]=items("students").first{$0["id"] as? String==studentId}
+            _=try updateItem("classes",id:classId){item in var copy=item;var values=copy["members"] as? [[String:Any]] ?? [];values.append(member);copy["members"]=values;return copy};return try envelope(member)
+        }
+        if request.method == .post, parts.count == 3, parts[0] == "orders", parts[2] == "payments" {
+            let input=try body(request);let payment:[String:Any]=["id":UUID().uuidString,"provider":input["provider"] ?? "OTHER","providerTransactionId":input["providerTransactionId"] ?? UUID().uuidString,"status":"SUCCEEDED","amountCents":input["amountCents"] ?? 0,"occurredAt":Self.date(Date())]
+            let order=try updateItem("orders",id:parts[1]){item in var copy=item;var values=copy["payments"] as? [[String:Any]] ?? [];values.append(payment);copy["payments"]=values;copy["status"]="PAID";copy["paidAt"]=Self.date(Date());return copy};return try envelope(order)
+        }
+        if request.method == .post, parts.count == 3, parts[0] == "orders", parts[2] == "refunds" {
+            let input=try body(request);let refund:[String:Any]=["id":UUID().uuidString,"amountCents":input["amountCents"] ?? 0,"hours":input["hours"] ?? 0,"reason":input["reason"] ?? NSNull(),"status":"REQUESTED","createdAt":Self.date(Date())]
+            _=try updateItem("orders",id:parts[1]){item in var copy=item;var values=copy["refunds"] as? [[String:Any]] ?? [];values.append(refund);copy["refunds"]=values;return copy};return try envelope(refund)
+        }
+        if request.method == .post, parts.count == 3, parts[0] == "refunds", parts[2] == "resolve" {
+            let input=try body(request);var resolved:[String:Any]?
+            var orders=items("orders");for oi in orders.indices{var refunds=orders[oi]["refunds"] as? [[String:Any]] ?? [];if let ri=refunds.firstIndex(where:{$0["id"] as? String==parts[1]}){refunds[ri]["status"]=input["status"] ?? "REJECTED";orders[oi]["refunds"]=refunds;resolved=refunds[ri];break}};state["orders"]=orders;try save();return try envelope(resolved ?? NSNull())
+        }
+        if request.method == .post, parts.count == 4, parts[0] == "class-members", parts[2] == "hours", parts[3] == "recharge" {
+            let input=try body(request),hours=Self.number(input["hours"]);var updated:[String:Any]?
+            var classes=items("classes");for ci in classes.indices { var members=classes[ci]["members"] as? [[String:Any]] ?? [];if let mi=members.firstIndex(where:{$0["id"] as? String==parts[1]}) { let total=Self.number(members[mi]["totalHours"])+hours;let balance=Self.number(members[mi]["remainingHours"])+hours;members[mi]["totalHours"]=total;members[mi]["remainingHours"]=balance;classes[ci]["members"]=members;let entry:[String:Any]=["id":UUID().uuidString,"memberId":parts[1],"studentId":members[mi]["studentId"] ?? "","type":"RECHARGE","delta":hours,"balanceAfter":balance,"remark":input["remark"] ?? NSNull(),"createdAt":Self.date(Date()),"student":members[mi]["student"] ?? NSNull()];var ledger=state["hour-ledger"] as? [[String:Any]] ?? [];ledger.insert(entry,at:0);state["hour-ledger"]=ledger;updated=entry;break } };state["classes"]=classes;try save();return try envelope(updated ?? NSNull())
+        }
         if request.method == .post, parts.count == 3, parts[0] == "plans", parts[2] == "check-ins" {
             let input = try body(request)
             let checkIn: [String: Any] = ["id": UUID().uuidString, "planId": parts[1], "note": input["note"] ?? NSNull(), "checkedAt": Self.date(Date())]
@@ -63,13 +127,15 @@ actor LocalDemoStore {
         }
         if (request.method == .post || request.method == .patch), parts.count == 3, parts[0] == "sessions", ["cancel", "reschedule", "confirm"].contains(parts[2]) {
             let changes = try body(request)
+            let normalizedRows = parts[2] == "confirm" ? normalizedAttendances(sessionId: parts[1], rows: changes["attendances"] as? [[String: Any]] ?? []) : []
             let item = try updateItem("sessions", id: parts[1]) { item in
                 var copy = item
                 if parts[2] == "cancel" { copy["status"] = "CANCELLED"; copy["cancelReason"] = changes["reason"] ?? NSNull() }
                 else if parts[2] == "reschedule" { copy["startsAt"] = changes["startsAt"]; copy["endsAt"] = changes["endsAt"]; copy["status"] = "RESCHEDULED" }
-                else { copy["status"] = "COMPLETED"; copy["completedAt"] = Self.date(Date()); copy["attendances"] = changes["attendances"] ?? [] }
+                else { copy["status"] = "COMPLETED"; copy["completedAt"] = Self.date(Date()); copy["attendances"] = normalizedRows }
                 return copy
             }
+            if parts[2] == "confirm" { try applyAttendanceDeductions(session: item, rows: normalizedRows) }
             return try envelope(item)
         }
         if request.method == .patch, parts.count == 3, parts[0] == "sessions", parts[2] == "feedback" {
@@ -148,6 +214,48 @@ actor LocalDemoStore {
         ]
     }
 
+    private func filteredSessions(_ query: [URLQueryItem]) -> [[String: Any]] {
+        let from = query.first(where: { $0.name == "from" })?.value.flatMap(Self.parse)
+        let to = query.first(where: { $0.name == "to" })?.value.flatMap(Self.parse)
+        let classId = query.first(where: { $0.name == "classId" })?.value
+        return items("sessions").filter { item in
+            guard let text = item["startsAt"] as? String, let date = Self.parse(text) else { return false }
+            if let from, date < from { return false }
+            if let to, date >= to { return false }
+            if let classId, item["classId"] as? String != classId { return false }
+            return true
+        }
+    }
+
+    private func enrichedClass(_ item: [String: Any]) -> [String: Any] {
+        var value = item
+        if let id = item["id"] as? String { value["sessions"] = items("sessions").filter { $0["classId"] as? String == id } }
+        return value
+    }
+
+    private func normalizedAttendances(sessionId: String, rows: [[String: Any]]) -> [[String: Any]] {
+        rows.map { row in
+            let studentId = row["studentId"] as? String ?? ""
+            return ["id": UUID().uuidString, "sessionId": sessionId, "studentId": studentId, "status": row["status"] ?? "PRESENT", "deductHours": Self.number(row["deductHours"]), "remark": row["remark"] ?? NSNull(), "student": items("students").first(where: { $0["id"] as? String == studentId }) ?? NSNull()]
+        }
+    }
+
+    private func applyAttendanceDeductions(session: [String: Any], rows: [[String: Any]]) throws {
+        guard let classId = session["classId"] as? String else { return }
+        var ledger = state["hour-ledger"] as? [[String: Any]] ?? []
+        _ = try updateItem("classes", id: classId) { classroom in
+            var copy = classroom; var members = copy["members"] as? [[String: Any]] ?? []
+            for row in rows where row["status"] as? String == "PRESENT" {
+                guard let studentId = row["studentId"] as? String, let index = members.firstIndex(where: { $0["studentId"] as? String == studentId }) else { continue }
+                let requested = Self.number(row["deductHours"]), balance = Self.number(members[index]["remainingHours"]), deducted = min(requested, balance)
+                let next = max(0, balance - deducted); members[index]["remainingHours"] = next; members[index]["consumedHours"] = Self.number(members[index]["consumedHours"]) + deducted
+                ledger.insert(["id":UUID().uuidString,"memberId":members[index]["id"] ?? "","studentId":studentId,"sessionId":session["id"] ?? "","type":"CONSUME","delta":-deducted,"balanceAfter":next,"remark":"确认上课自动扣减","createdAt":Self.date(Date()),"student":members[index]["student"] ?? NSNull()], at: 0)
+            }
+            copy["members"] = members; return copy
+        }
+        state["hour-ledger"] = ledger; try save()
+    }
+
     private func businessPayload() -> [String: Any] {
         let completed = items("sessions").filter { $0["status"] as? String == "COMPLETED" }
         let revenue = items("orders").reduce(0) { $0 + ($1["totalAmountCents"] as? Int ?? 0) }
@@ -222,13 +330,14 @@ actor LocalDemoStore {
             "materials":[],
             "plans":[["id":"plan-demo-1","studentId":"student-demo-1","title":"每日口算 15 分钟","description":"连续坚持四周","status":"ACTIVE","startsAt":now,"checkIns":[]]],
             "mistakes":[["id":"mistake-demo-1","studentId":"student-demo-1","subject":"数学","title":"工程问题","content":"两人合作完成工程需要多久？","answer":"6 天","analysis":"先求两人的工作效率之和","tags":["应用题"],"createdAt":now]],
-            "feedback":[], "manual-courses":[], "orders":[],
+            "feedback":[], "manual-courses":[], "orders":[], "hour-ledger":[],
             "notifications":[["id":"notice-demo-1","type":"SESSION_REMINDER","title":"明天有课","body":"周末数学小班将在明天开课","resourceType":"SESSION","resourceId":"session-demo-1","createdAt":now]],
             "announcements":[["id":"announcement-demo-1","title":"暑期课程安排","content":"暑期课程时间已经更新，请在课表中查看。","publishedAt":now]]
         ]
     }
 
     private static func code() -> String { String(UUID().uuidString.replacingOccurrences(of: "-", with: "").prefix(8)).uppercased() }
+    private static func number(_ value: Any?) -> Double { if let value=value as? Double{return value};if let value=value as? Int{return Double(value)};if let value=value as? String{return Double(value) ?? 0};if let value=value as? NSNumber{return value.doubleValue};return 0 }
     private static func date(_ value: Date) -> String { let f = ISO8601DateFormatter(); f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]; return f.string(from: value) }
     private static func parse(_ value: String) -> Date? { let a = ISO8601DateFormatter(); a.formatOptions = [.withInternetDateTime, .withFractionalSeconds]; return a.date(from: value) ?? ISO8601DateFormatter().date(from: value) }
 }

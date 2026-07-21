@@ -34,12 +34,15 @@ struct ClassroomHubView: View {
             }.padding(.bottom, 22)
         }
         .background(MPColor.page).toolbar(.hidden, for: .navigationBar)
-        .sheet(item: $sheet) { item in switch item { case .newClass: CreateClassSheet { await load() }; case .newStudent: CreateStudentSheet { await load() }; case .newCourse: NavigationStack { CourseEditorView { await load() } }; case .join: JoinClassSheet(students: students) { await load() }; case .bind: BindStudentSheet { await load() } } }
+        .sheet(item: $sheet) { item in switch item { case .newClass: ClassEditorView(courses: courses) { await load() }; case .newStudent: CreateStudentSheet { await load() }; case .newCourse: NavigationStack { CourseEditorView { await load() } }; case .join: JoinClassSheet(students: students) { await load() }; case .bind: BindStudentSheet { await load() } } }
         .refreshable { await load() }.task { if classes.isEmpty && students.isEmpty { await load() } }
     }
     @ViewBuilder private var content: some View {
         if selection == 0 {
             VStack(spacing: 12) {
+                NavigationLink { ScheduleCalendarView() } label: {
+                    MPCard { HStack(spacing: 12) { MPIconTile(image: "timetable-blue", color: MPColor.blue, size: 48); VStack(alignment: .leading, spacing: 4) { Text("我的课表").font(.system(size: 16, weight: .semibold)); Text("按周或按月查看全部课程安排").font(.system(size: 12)).foregroundStyle(MPColor.secondary) }; Spacer(); Image(systemName: "chevron.right").font(.caption.bold()).foregroundStyle(MPColor.secondary) } }
+                }.buttonStyle(.plain)
                 MPSectionHeader(title: "进行中的班级 (\(classes.count))")
                 if classes.isEmpty { MPCard { MPEmptyView(image: "class", title: "还没有班级", detail: "教师可以创建班级，家长可以使用邀请码加入") } }
                 else { ForEach(classes) { item in classCard(item) } }

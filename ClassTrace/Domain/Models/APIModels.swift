@@ -66,7 +66,31 @@ struct APIClassroom: Codable, Identifiable, Hashable, Sendable {
     var course: APICourse?
     var members: [APIClassMember]?
     var sessions: [APISession]?
+    var schedule: APIClassSchedule?
+    var color: String?
+    var maxStudents: Int?
+    var lessonDurationMinutes: Int?
+    var startDate: Date?
+    var priceSettings: APIPriceSettings?
+    var hourSettings: APIHourSettings?
 }
+struct APIClassSchedule: Codable, Hashable, Sendable {
+    var mode: String
+    var text: String
+    var days: [String]
+    var items: [APIClassScheduleItem]
+}
+struct APIClassScheduleItem: Codable, Identifiable, Hashable, Sendable {
+    var id: String
+    var day: String?
+    var dayEn: String?
+    var date: String?
+    var startTime: String
+    var endTime: String
+    var time: String?
+}
+struct APIPriceSettings: Codable, Hashable, Sendable { var type: String; var price: FlexibleDecimal }
+struct APIHourSettings: Codable, Hashable, Sendable { var totalHours: FlexibleDecimal; var warningThreshold: FlexibleDecimal }
 struct APIClassMember: Codable, Identifiable, Hashable, Sendable {
     let id: String
     var classId: String

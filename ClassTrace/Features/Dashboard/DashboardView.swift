@@ -7,6 +7,7 @@ struct DashboardView: View {
     @State private var home: APIHome?
     @State private var business: APIBusinessOverview?
     @State private var errorMessage: String?
+    @State private var showSchedule = false
 
     var body: some View {
         ScrollView(showsIndicators: false) {
@@ -37,6 +38,7 @@ struct DashboardView: View {
             }.padding(.bottom, 22)
         }
         .background(MPColor.page).toolbar(.hidden, for: .navigationBar)
+        .navigationDestination(isPresented: $showSchedule) { ScheduleCalendarView() }
         .refreshable { await load() }.task { if home == nil { await load() } }
     }
 
@@ -47,7 +49,7 @@ struct DashboardView: View {
 
     private func reminderSection(_ home: APIHome) -> some View {
         VStack(spacing: 12) {
-            MPSectionHeader(title: "近期提醒", action: "查看全部") { selectedTab = 1 }
+            MPSectionHeader(title: "近期提醒", action: "查看全部") { showSchedule = true }
             MPCard {
                 VStack(spacing: 0) {
                     ForEach(home.sessions.prefix(3)) { session in
@@ -79,7 +81,7 @@ struct DashboardView: View {
             MPSectionHeader(title: "快捷入口")
             MPCard {
                 HStack(alignment: .top, spacing: 4) {
-                    quickLink("课表", "timetable-blue", MPColor.blue) { ClassroomHubView() }
+                    quickLink("课表", "timetable-blue", MPColor.blue) { ScheduleCalendarView() }
                     quickLink("学生", "student-green", MPColor.green) { ClassroomHubView() }
                     quickLink("作业", "file-red", MPColor.red) { LearningHubView(initialSelection: 0) }
                     quickLink("资料", "material-brown", MPColor.gold) { LearningHubView(initialSelection: 1) }

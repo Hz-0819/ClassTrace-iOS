@@ -13,18 +13,40 @@ struct ClassroomDetailView: View {
     var body: some View {
         Group {
             if let classroom {
-                List {
-                    Section("班级信息") { LabeledContent("班型", value: classroom.classType.localizedStatus); LabeledContent("计费", value: classroom.billingMode == "PREPAID" ? "预付课时" : "现金记账"); LabeledContent("邀请码", value: classroom.inviteCode); if let location = classroom.location { LabeledContent("地点", value: location) } }
-                    Section { NavigationLink("查看并导出课时账本") { HourLedgerView(classId: classId) } }
-                    Section("学生与课时") {
-                        ForEach(classroom.members ?? []) { member in
-                            NavigationLink { MemberManagementView(classId: classId, member: member) { await load() } } label: { VStack(alignment: .leading) { HStack { Text(member.student?.name ?? "学生").font(.headline); Spacer(); Text(member.status.localizedStatus).foregroundStyle(Color.ctTextSecondary) }; Text("剩余 \(member.remainingHours.doubleValue.formatted()) 课时 · 单价 ¥\(member.pricePerHour.doubleValue.formatted())").font(.subheadline).foregroundStyle(member.remainingHours.doubleValue <= 2 ? Color.ctDanger : Color.ctTextSecondary) } }
-                        }
-                    }
-                    Section("课表与历史") {
-                        ForEach(classroom.sessions ?? []) { session in NavigationLink { SessionDetailView(sessionId: session.id) } label: { SessionRow(session: session) } }
-                    }
-                }
+                ScrollView(showsIndicators: false) {
+                    VStack(spacing: 20) {
+                        ZStack {
+                            MPColor.blue
+                            Circle().fill(.white.opacity(0.10)).frame(width: 120, height: 120).offset(x: 150, y: -45)
+                            VStack(alignment: .leading, spacing: 9) {
+                                HStack { MPIconTile(image: "class-white", color: .white, size: 50); VStack(alignment: .leading, spacing: 4) { Text(classroom.name).font(.system(size: 22, weight: .bold)); Text(classroom.status.localizedStatus).font(.system(size: 12)) }; Spacer() }
+                                Text(classroom.schedule?.text ?? "暂未设置固定排课").font(.system(size: 13)).opacity(0.82)
+                            }.foregroundStyle(.white).padding(20)
+                        }.frame(height: 145).clipShape(RoundedRectangle(cornerRadius: 0))
+
+                        VStack(spacing: 12) {
+                            MPSectionHeader(title: "班级信息")
+                            MPCard { VStack(spacing: 12) { infoRow("班型", classroom.classType.localizedStatus); infoRow("计费", classroom.billingMode == "PREPAID" ? "预付课时" : "现金记账"); infoRow("邀请码", classroom.inviteCode); if let location = classroom.location { infoRow("地点", location) } } }
+                        }.padding(.horizontal, 16)
+
+                        HStack(spacing: 10) {
+                            NavigationLink { ScheduleCalendarView() } label: { actionCard("课表", "timetable-blue", MPColor.blue) }
+                            NavigationLink { HourLedgerView(classId: classId) } label: { actionCard("课时账本", "bill-green", MPColor.green) }
+                        }.buttonStyle(.plain).padding(.horizontal, 16)
+
+                        VStack(spacing: 12) {
+                            MPSectionHeader(title: "学生与课时")
+                            if (classroom.members ?? []).isEmpty { MPCard { MPEmptyView(image: "student", title: "还没有学生", detail: "从右上角菜单添加学生到班级") } }
+                            ForEach(classroom.members ?? []) { member in NavigationLink { MemberManagementView(classId: classId, member: member) { await load() } } label: { MPCard { HStack { MPIconTile(image: member.student?.gender == "FEMALE" ? "girl" : "boy", color: MPColor.green, size: 46); VStack(alignment: .leading, spacing: 5) { Text(member.student?.name ?? "学生").font(.system(size: 15, weight: .semibold)); Text("剩余 \(member.remainingHours.doubleValue.formatted()) 课时 · 单价 ¥\(member.pricePerHour.doubleValue.formatted())").font(.system(size: 12)).foregroundStyle(member.remainingHours.doubleValue <= 2 ? MPColor.red : MPColor.secondary) }; Spacer(); Image(systemName: "chevron.right").font(.caption).foregroundStyle(MPColor.secondary) } } }.buttonStyle(.plain) }
+                        }.padding(.horizontal, 16)
+
+                        VStack(spacing: 12) {
+                            MPSectionHeader(title: "课表与历史")
+                            if (classroom.sessions ?? []).isEmpty { MPCard { MPEmptyView(image: "time", title: "暂无课节", detail: "可以添加单次课节或按固定周期批量排课") } }
+                            ForEach((classroom.sessions ?? []).sorted { $0.startsAt < $1.startsAt }) { session in NavigationLink { SessionDetailView(sessionId: session.id) } label: { MPCard { SessionRow(session: session) } }.buttonStyle(.plain) }
+                        }.padding(.horizontal, 16)
+                    }.padding(.bottom, 20)
+                }.background(MPColor.page)
             } else if let errorMessage { CTStateView(kind: .error, title: "加载失败", message: LocalizedStringKey(errorMessage), actionTitle: "重试") { Task { await load() } } }
             else { ProgressView() }
         }
@@ -35,6 +57,8 @@ struct ClassroomDetailView: View {
         .sheet(isPresented: $showGenerateSchedule) { GenerateScheduleView(classId: classId) { await load() } }
         .refreshable { await load() }.task { if classroom == nil { await load() } }
     }
+    private func infoRow(_ title: String, _ value: String) -> some View { HStack { Text(title).font(.system(size: 13)).foregroundStyle(MPColor.secondary); Spacer(); Text(value).font(.system(size: 14, weight: .medium)).foregroundStyle(MPColor.text) } }
+    private func actionCard(_ title: String, _ image: String, _ color: Color) -> some View { MPCard { HStack { MPIconTile(image: image, color: color, size: 42); Text(title).font(.system(size: 14, weight: .semibold)).foregroundStyle(MPColor.text); Spacer() } } }
     @MainActor private func load() async { do { let client = dependencies.client; async let c = ClassTraceRepository(client: client).classDetail(classId); async let s = ClassTraceRepository(client: client).students(); (classroom, students) = try await (c, s); errorMessage = nil } catch { errorMessage = error.localizedDescription } }
 }
 

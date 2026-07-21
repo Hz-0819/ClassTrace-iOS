@@ -65,6 +65,7 @@ struct ProfileHubView: View {
                 MPMenuRow(title: "学生管理", image: "student-green", color: MPColor.green) { ClassroomHubView() }
                 MPMenuRow(title: "作业管理", image: "file-red", color: MPColor.red) { LearningHubView(initialSelection: 0) }
                 MPMenuRow(title: "资料中心", image: "material-brown", color: MPColor.gold) { LearningHubView(initialSelection: 1) }
+                MPMenuRow(title: "个人日程", image: "timetable-blue", color: MPColor.blue) { ManualScheduleView() }
             }
             menuSection("财务管理") {
                 MPMenuRow(title: "经营概览", image: "bar chart-orange", color: MPColor.gold) { BusinessOverviewView() }

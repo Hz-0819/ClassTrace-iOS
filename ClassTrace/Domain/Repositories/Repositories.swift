@@ -69,8 +69,9 @@ struct ClassTraceRepository: Sendable {
     func createStudent(name: String, grade: String?, linkAsGuardian: Bool) async throws -> APIStudent {
         try await post("students", CreateStudentRequest(name: name, grade: grade, linkAsGuardian: linkAsGuardian))
     }
-    func createClass(name: String, type: String, billingMode: String, location: String?) async throws -> APIClassroom {
-        try await post("classes", CreateClassRequest(name: name, classType: type, billingMode: billingMode, location: location))
+    func createClass(name: String, type: String, billingMode: String, location: String?, courseId: String? = nil, schedule: APIClassSchedule? = nil, price: Double? = nil, totalHours: Double? = nil, lessonDurationMinutes: Int? = nil, startDate: Date? = nil, color: String? = nil) async throws -> APIClassroom {
+        let formatter = ISO8601DateFormatter()
+        return try await post("classes", CreateClassRequest(name: name, classType: type, billingMode: billingMode, location: location, courseId: courseId, schedule: schedule, priceSettings: price.map { APIPriceSettings(type: "session", price: FlexibleDecimal(Decimal($0))) }, hourSettings: totalHours.map { APIHourSettings(totalHours: FlexibleDecimal(Decimal($0)), warningThreshold: FlexibleDecimal(3)) }, lessonDurationMinutes: lessonDurationMinutes, startDate: startDate.map { formatter.string(from: $0) }, color: color, maxStudents: type == "ONE_ON_ONE" ? 1 : 20))
     }
     func joinClass(inviteCode: String, studentId: String) async throws -> APIClassMember {
         try await post("classes/join", JoinClassRequest(inviteCode: inviteCode, studentId: studentId))
@@ -163,7 +164,7 @@ private struct PhoneVerifyRequest: Encodable { let phone: String; let code: Stri
 private struct RefreshTokenRequest: Encodable { let refreshToken: String }
 private struct AppleAuthRequest: Encodable { let identityToken: String; let nonce: String; let authorizationCode: String?; let fullName: String?; let role: String }
 private struct CreateStudentRequest: Encodable { let name: String; let grade: String?; let linkAsGuardian: Bool }
-private struct CreateClassRequest: Encodable { let name: String; let classType: String; let billingMode: String; let location: String? }
+private struct CreateClassRequest: Encodable { let name: String; let classType: String; let billingMode: String; let location: String?; let courseId: String?; let schedule: APIClassSchedule?; let priceSettings: APIPriceSettings?; let hourSettings: APIHourSettings?; let lessonDurationMinutes: Int?; let startDate: String?; let color: String?; let maxStudents: Int? }
 private struct JoinClassRequest: Encodable { let inviteCode: String; let studentId: String }
 private struct CreateSessionRequest: Encodable { let classId: String; let startsAt: String; let endsAt: String }
 private struct GenerateSessionsRequest: Encodable { let classId: String; let from: String; let to: String; let weekdays: [Int]; let startTime: String; let durationMinutes: Int; let timezoneOffsetMinutes: Int }

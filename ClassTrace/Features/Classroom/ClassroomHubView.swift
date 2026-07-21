@@ -39,7 +39,7 @@ struct ClassroomHubView: View {
             }.padding(.bottom, 22)
         }
         .background(MPColor.page).toolbar(.hidden, for: .navigationBar)
-        .sheet(item: $sheet) { item in switch item { case .newClass: ClassEditorView(courses: courses) { await load() }; case .newStudent: CreateStudentSheet { await load() }; case .newCourse: NavigationStack { CourseEditorView { await load() } }; case .join: JoinClassSheet(students: students) { await load() }; case .bind: BindStudentSheet { await load() } } }
+        .sheet(item: $sheet) { item in switch item { case .newClass: ClassEditorView(courses: courses) { await load() }; case .newStudent: CreateStudentSheet { await load() }; case .newCourse: NavigationStack { CourseEditorView { await load() } }; case .join: ParentCourseAddView(students: students) { await load() }; case .bind: BindStudentSheet { await load() } } }
         .refreshable { await load() }.task { if classes.isEmpty && students.isEmpty { await load() } }
     }
     @ViewBuilder private var content: some View {

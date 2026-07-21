@@ -81,6 +81,7 @@ struct APIClassroom: Codable, Identifiable, Hashable, Sendable {
     var startDate: Date?
     var priceSettings: APIPriceSettings?
     var hourSettings: APIHourSettings?
+    var teacherName: String?
 }
 struct APIClassSchedule: Codable, Hashable, Sendable {
     var mode: String

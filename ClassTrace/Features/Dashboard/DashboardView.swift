@@ -159,4 +159,4 @@ private extension Int {
     var formattedCompactCurrency: String { "¥" + (Double(self) / 100).formatted(.number.precision(.fractionLength(0))) }
 }
 
-extension String { var localizedStatus: String { ["SCHEDULED":"待上课","COMPLETED":"已完成","CANCELLED":"已取消","RESCHEDULED":"已调课","ACTIVE":"进行中","PAUSED":"已暂停","PENDING":"待审批","APPROVED":"已加入","PUBLISHED":"已发布","DRAFT":"草稿","TEACHER":"教师","GUARDIAN":"家长","ADMIN":"管理员","PAID":"已支付","PROCESSING":"处理中","REQUESTED":"待处理","REFUNDED":"已退款","REJECTED":"已拒绝","DIRECT_FULL":"课费直收" ][self] ?? self } }
+extension String { var localizedStatus: String { ["SCHEDULED":"待上课","COMPLETED":"已完成","CANCELLED":"已取消","RESCHEDULED":"已调课","ACTIVE":"进行中","PAUSED":"已暂停","PENDING":"待审批","APPROVED":"已加入","PUBLISHED":"已发布","DRAFT":"草稿","TEACHER":"教师","GUARDIAN":"家长","ADMIN":"管理员","PAID":"已支付","PROCESSING":"处理中","REQUESTED":"待处理","REFUNDED":"已退款","REJECTED":"已拒绝","DIRECT_FULL":"课费直收","ONE_ON_ONE":"一对一","SMALL_GROUP":"小班课","PREPAID":"预付课时","CASH":"现金记账","PRESENT":"出勤","LEAVE":"请假","ABSENT":"缺席","CONSUME":"课时消费","RECHARGE":"课时充值" ][self] ?? self } }

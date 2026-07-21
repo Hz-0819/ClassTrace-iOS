@@ -95,6 +95,60 @@ actor LocalDemoStore {
             var member:[String:Any]=["id":UUID().uuidString,"classId":classId,"studentId":studentId,"status":"APPROVED","totalHours":0,"consumedHours":0,"remainingHours":0,"pricePerHour":0];member["student"]=items("students").first{$0["id"] as? String==studentId}
             _=try updateItem("classes",id:classId){item in var copy=item;var values=copy["members"] as? [[String:Any]] ?? [];values.append(member);copy["members"]=values;return copy};return try envelope(member)
         }
+        if request.method == .post, parts.count == 3, parts[0] == "students", parts[2] == "guardian-invites" {
+            guard items("students").contains(where: { $0["id"] as? String == parts[1] }) else { throw LocalStoreError.notFound }
+            let code = Self.code()
+            let invite: [String: Any] = [
+                "code": code,
+                "studentId": parts[1],
+                "expiresAt": Self.date(Date().addingTimeInterval(24 * 60 * 60))
+            ]
+            var invites = state["guardian-invites"] as? [[String: Any]] ?? []
+            invites.removeAll { $0["studentId"] as? String == parts[1] }
+            invites.append(invite)
+            state["guardian-invites"] = invites
+            try save()
+            return try envelope(["code": code, "expiresIn": 86_400])
+        }
+        if request.method == .post, path == "students/bind" {
+            let input = try body(request)
+            guard let code = input["code"] as? String,
+                  let invite = (state["guardian-invites"] as? [[String: Any]])?.first(where: {
+                      ($0["code"] as? String)?.uppercased() == code.uppercased()
+                  }),
+                  let studentId = invite["studentId"] as? String
+            else { throw LocalStoreError.invalidInvite }
+
+            let relationship = input["relationship"] as? String ?? "家长"
+            let guardianId = UUID().uuidString
+            let student = try updateItem("students", id: studentId) { item in
+                var copy = item
+                var guardians = copy["guardians"] as? [[String: Any]] ?? []
+                guardians.append([
+                    "id": guardianId,
+                    "guardianUserId": "local-guardian",
+                    "relationship": relationship,
+                    "isPrimary": guardians.isEmpty
+                ])
+                copy["guardians"] = guardians
+                return copy
+            }
+            state["guardian-invites"] = (state["guardian-invites"] as? [[String: Any]] ?? []).filter {
+                ($0["code"] as? String)?.uppercased() != code.uppercased()
+            }
+            try save()
+            return try envelope(student)
+        }
+        if request.method == .delete, parts.count == 4, parts[0] == "students", parts[2] == "guardians" {
+            _ = try updateItem("students", id: parts[1]) { item in
+                var copy = item
+                var guardians = copy["guardians"] as? [[String: Any]] ?? []
+                guardians.removeAll { $0["id"] as? String == parts[3] }
+                copy["guardians"] = guardians
+                return copy
+            }
+            return try envelope(NSNull())
+        }
         if request.method == .post, parts.count == 3, parts[0] == "orders", parts[2] == "payments" {
             let input=try body(request);let payment:[String:Any]=["id":UUID().uuidString,"provider":input["provider"] ?? "OTHER","providerTransactionId":input["providerTransactionId"] ?? UUID().uuidString,"status":"SUCCEEDED","amountCents":input["amountCents"] ?? 0,"occurredAt":Self.date(Date())]
             let order=try updateItem("orders",id:parts[1]){item in var copy=item;var values=copy["payments"] as? [[String:Any]] ?? [];values.append(payment);copy["payments"]=values;copy["status"]="PAID";copy["paidAt"]=Self.date(Date());return copy};return try envelope(order)
@@ -163,6 +217,7 @@ actor LocalDemoStore {
             state["homework"]=homework;try save();guard let reviewed else{throw LocalStoreError.notFound};return try envelope(reviewed)
         }
         if request.method == .post, parts.count == 3, parts[0] == "sessions", parts[2] == "undo" {
+            try restoreAttendanceDeductions(sessionId: parts[1])
             let item=try updateItem("sessions",id:parts[1]){item in var copy=item;copy["status"]="SCHEDULED";copy.removeValue(forKey:"completedAt");copy["attendances"]=[];return copy};return try envelope(item)
         }
 
@@ -273,6 +328,34 @@ actor LocalDemoStore {
         state["hour-ledger"] = ledger; try save()
     }
 
+    private func restoreAttendanceDeductions(sessionId: String) throws {
+        let ledger = state["hour-ledger"] as? [[String: Any]] ?? []
+        let consumed = ledger.filter {
+            $0["sessionId"] as? String == sessionId && $0["type"] as? String == "CONSUME"
+        }
+        guard !consumed.isEmpty else { return }
+
+        var classes = items("classes")
+        for classIndex in classes.indices {
+            var members = classes[classIndex]["members"] as? [[String: Any]] ?? []
+            for memberIndex in members.indices {
+                guard let memberId = members[memberIndex]["id"] as? String else { continue }
+                let restored = consumed
+                    .filter { $0["memberId"] as? String == memberId }
+                    .reduce(0.0) { $0 + abs(Self.number($1["delta"])) }
+                guard restored > 0 else { continue }
+                members[memberIndex]["remainingHours"] = Self.number(members[memberIndex]["remainingHours"]) + restored
+                members[memberIndex]["consumedHours"] = max(0, Self.number(members[memberIndex]["consumedHours"]) - restored)
+            }
+            classes[classIndex]["members"] = members
+        }
+        state["classes"] = classes
+        state["hour-ledger"] = ledger.filter {
+            !($0["sessionId"] as? String == sessionId && $0["type"] as? String == "CONSUME")
+        }
+        try save()
+    }
+
     private func businessPayload() -> [String: Any] {
         let completed = items("sessions").filter { $0["status"] as? String == "COMPLETED" }
         let revenue = items("orders").reduce(0) { $0 + ($1["totalAmountCents"] as? Int ?? 0) }
@@ -347,7 +430,7 @@ actor LocalDemoStore {
             "materials":[],
             "plans":[["id":"plan-demo-1","studentId":"student-demo-1","title":"每日口算 15 分钟","description":"连续坚持四周","status":"ACTIVE","startsAt":now,"checkIns":[]]],
             "mistakes":[["id":"mistake-demo-1","studentId":"student-demo-1","subject":"数学","title":"工程问题","content":"两人合作完成工程需要多久？","answer":"6 天","analysis":"先求两人的工作效率之和","tags":["应用题"],"createdAt":now]],
-            "feedback":[], "manual-courses":[], "orders":[], "hour-ledger":[],
+            "feedback":[], "manual-courses":[], "orders":[], "hour-ledger":[], "guardian-invites":[],
             "notification-preferences":[["id":"pref-demo-1","eventType":"SESSION_REMINDER","channel":"APNS","enabled":true],["id":"pref-demo-2","eventType":"HOMEWORK","channel":"IN_APP","enabled":true]],
             "notifications":[["id":"notice-demo-1","type":"SESSION_REMINDER","title":"明天有课","body":"周末数学小班将在明天开课","resourceType":"SESSION","resourceId":"session-demo-1","createdAt":now]],
             "announcements":[["id":"announcement-demo-1","title":"暑期课程安排","content":"暑期课程时间已经更新，请在课表中查看。","publishedAt":now]]
@@ -362,5 +445,11 @@ actor LocalDemoStore {
 
 private enum LocalStoreError: LocalizedError {
     case notFound
-    var errorDescription: String? { "本地数据不存在或已被删除" }
+    case invalidInvite
+    var errorDescription: String? {
+        switch self {
+        case .notFound: "本地数据不存在或已被删除"
+        case .invalidInvite: "邀请码无效或已经使用"
+        }
+    }
 }

@@ -68,4 +68,43 @@ final class DemoModeTests: XCTestCase {
         XCTAssertEqual(sessions.count, result.created)
         XCTAssertTrue(sessions.allSatisfy { $0.classId == classroom.id })
     }
+
+    func testUndoAttendanceRestoresMemberHoursAndRemovesConsumptionLedger() async throws {
+        let repository = ClassTraceRepository(client: client)
+        let student = try await repository.createStudent(name: "撤销点名学生-\(UUID().uuidString.prefix(4))", grade: "四年级", linkAsGuardian: false)
+        let classroom = try await repository.createClass(name: "撤销点名班级-\(UUID().uuidString.prefix(4))", type: "ONE_ON_ONE", billingMode: "PREPAID", location: nil)
+        let member = try await repository.addMember(classId: classroom.id, studentId: student.id, initialHours: 10, pricePerHour: 120)
+        let session = try await repository.createSession(classId: classroom.id, startsAt: Date(), endsAt: Date().addingTimeInterval(3600))
+
+        _ = try await repository.confirmSession(
+            id: session.id,
+            attendances: [ConfirmAttendanceRequest(studentId: student.id, status: "PRESENT", deductHours: 1, remark: nil)]
+        )
+        let deducted = try await repository.classDetail(classroom.id)
+        let ledgerAfterConfirmation = try await repository.hourLedger()
+        XCTAssertEqual(deducted.members?.first(where: { $0.id == member.id })?.remainingHours.doubleValue, 9)
+        XCTAssertTrue(ledgerAfterConfirmation.contains(where: { $0.sessionId == session.id }))
+
+        _ = try await repository.undoSession(id: session.id)
+        let restored = try await repository.classDetail(classroom.id)
+        let ledgerAfterUndo = try await repository.hourLedger()
+        XCTAssertEqual(restored.members?.first(where: { $0.id == member.id })?.remainingHours.doubleValue, 10)
+        XCTAssertEqual(restored.members?.first(where: { $0.id == member.id })?.consumedHours.doubleValue, 0)
+        XCTAssertFalse(ledgerAfterUndo.contains(where: { $0.sessionId == session.id }))
+    }
+
+    func testGuardianInviteBindAndRemovalPersistLocally() async throws {
+        let repository = ClassTraceRepository(client: client)
+        let student = try await repository.createStudent(name: "绑定监护人-\(UUID().uuidString.prefix(4))", grade: "二年级", linkAsGuardian: false)
+        let invite = try await repository.createGuardianInvite(studentId: student.id)
+        let bound = try await repository.bindStudent(code: invite.code, relationship: "妈妈")
+
+        XCTAssertEqual(bound.id, student.id)
+        XCTAssertEqual(bound.guardians?.first?.relationship, "妈妈")
+        let guardianId = try XCTUnwrap(bound.guardians?.first?.id)
+
+        try await repository.removeGuardian(studentId: student.id, guardianId: guardianId)
+        let unbound = try await repository.studentDetail(student.id)
+        XCTAssertTrue(unbound.guardians?.isEmpty == true)
+    }
 }

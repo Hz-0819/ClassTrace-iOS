@@ -57,6 +57,10 @@ actor HTTPClient {
     }
 
     func send<Value: Decodable & Sendable>(_ request: HTTPRequest, as type: Value.Type = Value.self) async throws -> Value {
+        if DemoMode.isEnabled {
+            let data = try await DemoAPI.shared.response(for: request)
+            return try decoder.decode(APISuccessEnvelope<Value>.self, from: data).data
+        }
         try await perform(request, as: type, mayRefresh: true)
     }
 
@@ -110,6 +114,10 @@ actor HTTPClient {
     }
 
     func sendWithoutResponse(_ request: HTTPRequest) async throws {
+        if DemoMode.isEnabled {
+            _ = try await DemoAPI.shared.response(for: request)
+            return
+        }
         try await performWithoutResponse(request, mayRefresh: true)
     }
 

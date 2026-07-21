@@ -19,3 +19,9 @@
 后端在 `services/api` 运行 `npm ci`、`npm run build`、`npm test`、`npm run test:e2e`。根目录运行 `npm run verify:ios`。iOS 工程必须在 macOS 安装 XcodeGen 后执行 `xcodegen generate`，再由 Xcode 完成签名、真机推送、Sign in with Apple、StoreKit 沙盒和 UI 冒烟测试。
 
 详细步骤与所有必须填写的外部配置见 [运行与发布手册](docs/runbook.md)。
+
+## 免登录功能测试分支
+
+分支 `codex/ios-no-auth-functional-test` 会在 Debug 和 Release 构建中启用本地演示模式：应用直接进入首页，使用本地样例身份和业务数据，不访问真实账号、短信、Apple 登录或生产 API。界面顶部会持续显示橙色演示标识，所有模拟操作在重启后复原。
+
+该分支只用于页面和业务交互验收，不得合并为 App Store 正式版本。真实登录、APNs、StoreKit 和服务端联调仍在正式分支完成。

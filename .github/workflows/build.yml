@@ -2,7 +2,7 @@ name: iOS Build
 
 on:
   push:
-    branches: [main, master, develop]
+    branches: [main, master, develop, codex/ios-no-auth-functional-test]
   pull_request:
     branches: [main, master]
   workflow_dispatch:

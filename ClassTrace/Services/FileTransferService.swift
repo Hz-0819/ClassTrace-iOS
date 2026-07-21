@@ -4,6 +4,7 @@ struct FileTransferService: Sendable {
     let client: HTTPClient
 
     func upload(data: Data, fileName: String, mimeType: String) async throws -> String {
+        if DemoMode.isEnabled { return "demo/materials/\(UUID().uuidString)/\(fileName)" }
         let intent: APIUploadIntent = try await client.send(.json(method: .post, path: "storage/upload-intents", body: UploadIntent(fileName: fileName, mimeType: mimeType, sizeBytes: data.count)))
         guard let url = URL(string: intent.uploadUrl) else { throw URLError(.badURL) }
         var request = URLRequest(url: url)
@@ -15,6 +16,7 @@ struct FileTransferService: Sendable {
     }
 
     func downloadURL(objectKey: String) async throws -> URL {
+        if DemoMode.isEnabled { return URL(string: "https://www.example.com/")! }
         let payload: APIDownloadURL = try await client.send(HTTPRequest(method: .get, path: "storage/download-url", query: [.init(name: "objectKey", value: objectKey)]))
         guard let url = URL(string: payload.url) else { throw URLError(.badURL) }
         return url

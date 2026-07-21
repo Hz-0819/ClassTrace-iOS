@@ -23,6 +23,9 @@ assert(existsSync(join(root, "project.yml")), "project.yml is missing");
 assert(existsSync(join(root, "ClassTrace/Resources/PrivacyInfo.xcprivacy")), "privacy manifest is missing");
 assert(text("project.yml").includes('iOS: "17.0"'), "deployment target must be iOS 17");
 assert(!text("ClassTrace/App/ClassTraceApp.swift").includes("preferredColorScheme(.light)"), "app must not force light mode");
+assert(text("project.yml").includes("DEMO_MODE"), "demo branch must compile with DEMO_MODE enabled");
+assert(existsSync(join(root, "ClassTrace/Demo/DemoAPI.swift")), "demo API fixture is missing");
+assert(text("ClassTrace/App/RootView.swift").includes("DemoModeBanner"), "demo build must display a persistent safety banner");
 
 const userModel = text("ClassTrace/Domain/Models/APIModels.swift");
 for (const forbidden of ["openid", "var password", "appleUserIdentifier", "notificationCredits"]) {

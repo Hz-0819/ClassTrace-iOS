@@ -113,6 +113,6 @@ private struct JoinClassSheet: View {
 private struct BindStudentSheet: View {
     @Environment(\.dismiss) private var dismiss; @Environment(AppDependencies.self) private var dependencies
     let onSaved: () async -> Void; @State private var code = ""; @State private var relationship = "家长"; @State private var error: String?
-    var body: some View { NavigationStack { Form { TextField("监护人邀请码", text: $code); TextField("与孩子的关系", text: $relationship); if let error { Text(error).foregroundStyle(Color.ctDanger) } }.navigationTitle("绑定孩子").toolbar { ToolbarItem(placement: .cancellationAction) { Button("取消") { dismiss() } }; ToolbarItem(placement: .confirmationAction) { Button("绑定") { Task { await save() } }.disabled(code.count < 12) } } } }
+    var body: some View { NavigationStack { Form { TextField("监护人邀请码", text: $code); TextField("与孩子的关系", text: $relationship); if let error { Text(error).foregroundStyle(Color.ctDanger) } }.mpFormChrome().navigationTitle("绑定孩子").toolbar { ToolbarItem(placement: .cancellationAction) { Button("取消") { dismiss() } }; ToolbarItem(placement: .confirmationAction) { Button("绑定") { Task { await save() } }.disabled(code.count < 8) } } } }
     @MainActor private func save() async { do { _ = try await ClassTraceRepository(client: dependencies.client).bindStudent(code: code, relationship: relationship.nilIfEmpty); await onSaved(); dismiss() } catch { self.error = error.localizedDescription } }
 }

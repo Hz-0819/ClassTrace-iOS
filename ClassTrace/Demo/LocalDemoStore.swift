@@ -18,11 +18,16 @@ actor LocalDemoStore {
             if path == "home" { return try envelope(homePayload()) }
             if path == "business/overview" { return try envelope(businessPayload()) }
             if path == "sessions" { return try envelope(filteredSessions(request.query)) }
-            if path == "hour-ledger" { return try envelope(state["hour-ledger"] as? [[String: Any]] ?? []) }
+            if path == "hour-ledger" { return try envelope(filteredHourLedger(request.query)) }
             if path == "notification-preferences" { return try envelope(state["notification-preferences"] as? [[String: Any]] ?? []) }
-            if let key = collectionKey(for: path), path == key { return try envelope(items(key)) }
+            if path.hasPrefix("attendance/students/"), path.hasSuffix("/stats") {
+                let studentId = path.split(separator: "/").dropFirst(2).first.map(String.init) ?? ""
+                return try envelope(attendanceStatsPayload(studentId: studentId))
+            }
+            if let key = collectionKey(for: path), path == key { return try envelope(filteredItems(key, query: request.query)) }
             if let (key, id) = detailPath(path), let item = items(key).first(where: { $0["id"] as? String == id }) {
                 if key == "classes" { return try envelope(enrichedClass(item)) }
+                if key == "students" { return try envelope(enrichedStudent(item)) }
                 return try envelope(item)
             }
         }
@@ -237,6 +242,30 @@ actor LocalDemoStore {
 
     private func items(_ key: String) -> [[String: Any]] { state[key] as? [[String: Any]] ?? [] }
 
+    private func filteredItems(_ key: String, query: [URLQueryItem]) -> [[String: Any]] {
+        let classId = query.first(where: { $0.name == "classId" })?.value
+        let studentId = query.first(where: { $0.name == "studentId" })?.value
+        return items(key).filter { item in
+            if let classId, item["classId"] as? String != classId { return false }
+            if let studentId, item["studentId"] as? String != studentId { return false }
+            return true
+        }
+    }
+
+    private func filteredHourLedger(_ query: [URLQueryItem]) -> [[String: Any]] {
+        let classId = query.first(where: { $0.name == "classId" })?.value
+        let studentId = query.first(where: { $0.name == "studentId" })?.value
+        let memberIds = Set(items("classes")
+            .filter { classId == nil || $0["id"] as? String == classId }
+            .flatMap { $0["members"] as? [[String: Any]] ?? [] }
+            .compactMap { $0["id"] as? String })
+        return (state["hour-ledger"] as? [[String: Any]] ?? []).filter { entry in
+            if let studentId, entry["studentId"] as? String != studentId { return false }
+            if classId != nil, let memberId = entry["memberId"] as? String, !memberIds.contains(memberId) { return false }
+            return true
+        }
+    }
+
     private func body(_ request: HTTPRequest) throws -> [String: Any] {
         guard let data = request.body else { return [:] }
         return try JSONSerialization.jsonObject(with: data) as? [String: Any] ?? [:]
@@ -300,6 +329,39 @@ actor LocalDemoStore {
         var value = item
         if let id = item["id"] as? String { value["sessions"] = items("sessions").filter { $0["classId"] as? String == id } }
         return value
+    }
+
+    private func enrichedStudent(_ item: [String: Any]) -> [String: Any] {
+        guard let studentId = item["id"] as? String else { return item }
+        var value = item
+        value["classMembers"] = items("classes").flatMap { classroom -> [[String: Any]] in
+            let summary = classSummary(classroom)
+            return (classroom["members"] as? [[String: Any]] ?? []).compactMap { member in
+                guard member["studentId"] as? String == studentId else { return nil }
+                var copy = member
+                copy["classroom"] = summary
+                return copy
+            }
+        }
+        value["attendances"] = items("sessions").flatMap { $0["attendances"] as? [[String: Any]] ?? [] }
+            .filter { $0["studentId"] as? String == studentId }
+        value["homeworkSubmissions"] = items("homework").flatMap { $0["submissions"] as? [[String: Any]] ?? [] }
+            .filter { $0["studentId"] as? String == studentId }
+        value["studyPlans"] = items("plans").filter { $0["studentId"] as? String == studentId }
+        value["mistakes"] = items("mistakes").filter { $0["studentId"] as? String == studentId && $0["masteredAt"] == nil }
+        return value
+    }
+
+    private func attendanceStatsPayload(studentId: String) -> [String: Any] {
+        let rows = items("sessions").flatMap { $0["attendances"] as? [[String: Any]] ?? [] }
+            .filter { $0["studentId"] as? String == studentId }
+        var counts = ["PRESENT": 0, "LEAVE": 0, "ABSENT": 0]
+        for row in rows {
+            let status = row["status"] as? String ?? "ABSENT"
+            counts[status, default: 0] += 1
+        }
+        let rate = rows.isEmpty ? 0 : Double(counts["PRESENT", default: 0]) / Double(rows.count)
+        return ["total": rows.count, "counts": counts, "attendanceRate": rate]
     }
 
     private func normalizedAttendances(sessionId: String, rows: [[String: Any]]) -> [[String: Any]] {

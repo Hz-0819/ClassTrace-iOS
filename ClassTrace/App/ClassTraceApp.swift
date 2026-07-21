@@ -12,6 +12,8 @@ struct ClassTraceApp: App {
             RootView()
                 .environment(session)
                 .environment(dependencies)
+                .tint(MPColor.blue)
+                .background(MPColor.page.ignoresSafeArea())
         }
     }
 }

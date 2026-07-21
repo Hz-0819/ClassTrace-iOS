@@ -117,18 +117,18 @@ struct StudentEditorView: View {
             Section("监护人") {
                 Button("生成监护人邀请") { Task { await createInvite() } }
                 if let invite { ShareLink(item: invite.code) { Label("分享邀请码：\(invite.code)", systemImage: "square.and.arrow.up") } }
-                ForEach(student.guardians ?? []) { guardian in
-                    HStack { Text(guardian.relationship ?? "监护人"); Spacer(); if let guardianUserId = guardian.guardianUserId { Button("解除", role: .destructive) { Task { await removeGuardian(guardianUserId) } } } }
+                ForEach(details?.guardians ?? student.guardians ?? []) { guardian in
+                    HStack { Text(guardian.relationship ?? "监护人"); Spacer(); Button("解除", role: .destructive) { Task { await removeGuardian(guardian.id) } } }
                 }
             }
             if let error { Text(error).foregroundStyle(Color.ctDanger) }
             Button("删除学生档案", role: .destructive) { Task { await remove() } }
-        }.navigationTitle("学生档案").toolbar { Button("保存") { Task { await save() } }.disabled(name.isEmpty) }.task { await loadDetail() }
+        }.mpFormChrome().navigationTitle("学生档案").toolbar { Button("保存") { Task { await save() } }.disabled(name.isEmpty) }.task { await loadDetail() }
     }
     @MainActor private func save() async { do { _ = try await ClassTraceRepository(client: dependencies.client).updateStudent(student.id, name: name, grade: grade.nilIfEmpty, gender: gender.nilIfEmpty); await onSaved(); dismiss() } catch { self.error = error.localizedDescription } }
     @MainActor private func remove() async { do { try await ClassTraceRepository(client: dependencies.client).deleteStudent(student.id); await onSaved(); dismiss() } catch { self.error = error.localizedDescription } }
     @MainActor private func createInvite() async { do { invite = try await ClassTraceRepository(client: dependencies.client).createGuardianInvite(studentId: student.id) } catch { self.error = error.localizedDescription } }
-    @MainActor private func removeGuardian(_ guardianId: String) async { do { try await ClassTraceRepository(client: dependencies.client).removeGuardian(studentId: student.id, guardianId: guardianId); await onSaved() } catch { self.error = error.localizedDescription } }
+    @MainActor private func removeGuardian(_ guardianId: String) async { do { try await ClassTraceRepository(client: dependencies.client).removeGuardian(studentId: student.id, guardianId: guardianId); await onSaved(); await loadDetail() } catch { self.error = error.localizedDescription } }
     @MainActor private func loadDetail() async { let r = ClassTraceRepository(client: dependencies.client); async let d = try? r.studentDetail(student.id); async let s = try? r.attendanceStats(studentId: student.id); (details, stats) = await (d, s) }
 }
 

@@ -82,15 +82,20 @@ final class DemoModeTests: XCTestCase {
         )
         let deducted = try await repository.classDetail(classroom.id)
         let ledgerAfterConfirmation = try await repository.hourLedger()
+        let statsAfterConfirmation = try await repository.attendanceStats(studentId: student.id)
         XCTAssertEqual(deducted.members?.first(where: { $0.id == member.id })?.remainingHours.doubleValue, 9)
         XCTAssertTrue(ledgerAfterConfirmation.contains(where: { $0.sessionId == session.id }))
+        XCTAssertEqual(statsAfterConfirmation.total, 1)
+        XCTAssertEqual(statsAfterConfirmation.counts["PRESENT"], 1)
 
         _ = try await repository.undoSession(id: session.id)
         let restored = try await repository.classDetail(classroom.id)
         let ledgerAfterUndo = try await repository.hourLedger()
+        let statsAfterUndo = try await repository.attendanceStats(studentId: student.id)
         XCTAssertEqual(restored.members?.first(where: { $0.id == member.id })?.remainingHours.doubleValue, 10)
         XCTAssertEqual(restored.members?.first(where: { $0.id == member.id })?.consumedHours.doubleValue, 0)
         XCTAssertFalse(ledgerAfterUndo.contains(where: { $0.sessionId == session.id }))
+        XCTAssertEqual(statsAfterUndo.total, 0)
     }
 
     func testGuardianInviteBindAndRemovalPersistLocally() async throws {

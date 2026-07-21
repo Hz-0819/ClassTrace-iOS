@@ -1,0 +1,28 @@
+.DS_Store
+DerivedData/
+*.xcuserstate
+xcuserdata/
+
+# XcodeGen generated files (should be regenerated on each build)
+*.xcodeproj
+*.xcworkspace
+
+# Build artifacts
+build/
+Payload/
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# Swift Package Manager
+.build/
+Package.resolved
+
+# CocoaPods (if ever used)
+Pods/
+
+# Services
+services/api/node_modules/
+services/api/dist/
+services/api/.env
+services/api/src/generated/

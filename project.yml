@@ -1,0 +1,66 @@
+name: ClassTrace
+options:
+  bundleIdPrefix: com.classtrace
+  deploymentTarget:
+    iOS: "17.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    DEVELOPMENT_TEAM: ""
+    CODE_SIGN_STYLE: Automatic
+    CURRENT_PROJECT_VERSION: 1
+    MARKETING_VERSION: 1.0.0
+configs:
+  Debug: debug
+  Release: release
+targets:
+  ClassTrace:
+    type: application
+    platform: iOS
+    sources:
+      - path: ClassTrace
+    resources:
+      - path: ClassTrace/Resources
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.classtrace.ios
+        CODE_SIGN_ENTITLEMENTS: ClassTrace/Resources/ClassTrace.entitlements
+        INFOPLIST_KEY_CFBundleDisplayName: 课迹
+        INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.education
+        INFOPLIST_KEY_UIApplicationSceneManifest_Generation: true
+        INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents: true
+        INFOPLIST_KEY_UILaunchScreen_Generation: true
+        INFOPLIST_KEY_API_BASE_URL: https://api.classtrace.app
+        SUPPORTS_MACCATALYST: false
+    info:
+      path: ClassTrace/Resources/Info.plist
+      properties:
+        CFBundleDisplayName: 课迹
+        UILaunchScreen: {}
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: false
+        UIBackgroundModes:
+          - remote-notification
+        API_BASE_URL: https://api.classtrace.app
+        NSCameraUsageDescription: 用于拍摄并上传教学资料、作业和头像。
+        NSPhotoLibraryUsageDescription: 用于选择并上传教学资料、作业和头像。
+  ClassTraceTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: ClassTraceTests
+    dependencies:
+      - target: ClassTrace
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.classtrace.ios.tests
+schemes:
+  ClassTrace:
+    build:
+      targets:
+        ClassTrace: all
+        ClassTraceTests: [test]
+    test:
+      targets:
+        - ClassTraceTests

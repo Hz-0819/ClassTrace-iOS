@@ -1,0 +1,12 @@
+{
+  "name": "classtrace-ios-workspace",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "verify:ios": "node tools/verify-ios-architecture.mjs",
+    "test:api": "npm --prefix services/api run test:e2e",
+    "build:api": "npm --prefix services/api run build",
+    "validate:db": "npm --prefix services/api run prisma:validate"
+  }
+}
+

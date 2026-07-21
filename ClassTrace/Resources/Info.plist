@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>CFBundleDisplayName</key><string>课迹</string>
+  <key>API_BASE_URL</key><string>https://api.classtrace.app</string>
+  <key>NSCameraUsageDescription</key><string>用于拍摄并上传教学资料、作业和头像。</string>
+  <key>NSPhotoLibraryUsageDescription</key><string>用于选择并上传教学资料、作业和头像。</string>
+  <key>UIBackgroundModes</key><array><string>remote-notification</string></array>
+  <key>UILaunchScreen</key><dict/>
+</dict>
+</plist>

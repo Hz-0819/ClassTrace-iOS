@@ -48,6 +48,14 @@ enum LegacyImageLoader {
     }
 }
 
+extension View {
+    func mpFormChrome() -> some View {
+        scrollContentBackground(.hidden)
+            .background(MPColor.page)
+            .tint(MPColor.blue)
+    }
+}
+
 struct MPPageHeader<Trailing: View>: View {
     let greeting: String
     let name: String

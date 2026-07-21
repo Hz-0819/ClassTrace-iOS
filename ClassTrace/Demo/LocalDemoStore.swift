@@ -19,6 +19,7 @@ actor LocalDemoStore {
             if path == "business/overview" { return try envelope(businessPayload()) }
             if path == "sessions" { return try envelope(filteredSessions(request.query)) }
             if path == "hour-ledger" { return try envelope(state["hour-ledger"] as? [[String: Any]] ?? []) }
+            if path == "notification-preferences" { return try envelope(state["notification-preferences"] as? [[String: Any]] ?? []) }
             if let key = collectionKey(for: path), path == key { return try envelope(items(key)) }
             if let (key, id) = detailPath(path), let item = items(key).first(where: { $0["id"] as? String == id }) {
                 if key == "classes" { return try envelope(enrichedClass(item)) }
@@ -71,6 +72,11 @@ actor LocalDemoStore {
         }
 
         let parts = path.split(separator: "/").map(String.init)
+        if request.method == .post, path == "notification-preferences" {
+            let input=try body(request);var values=state["notification-preferences"] as? [[String:Any]] ?? [];let event=input["eventType"] as? String ?? "",channel=input["channel"] as? String ?? "IN_APP"
+            if let index=values.firstIndex(where:{$0["eventType"] as? String==event && $0["channel"] as? String==channel}){values[index]["enabled"]=input["enabled"] ?? true;state["notification-preferences"]=values;try save();return try envelope(values[index])}
+            let value:[String:Any]=["id":UUID().uuidString,"eventType":event,"channel":channel,"enabled":input["enabled"] ?? true];values.append(value);state["notification-preferences"]=values;try save();return try envelope(value)
+        }
         if request.method == .post, parts.count == 3, parts[0] == "classes", parts[2] == "members" {
             let input = try body(request); guard let studentId = input["studentId"] as? String else { return nil }
             let initial = Self.number(input["initialHours"]); let price = Self.number(input["pricePerHour"])
@@ -150,6 +156,14 @@ actor LocalDemoStore {
             if let studentId = input["studentId"] as? String { submission["student"] = items("students").first { $0["id"] as? String == studentId } }
             _ = try updateItem("homework", id: parts[1]) { item in var copy = item; var values = copy["submissions"] as? [[String: Any]] ?? []; values.insert(submission, at: 0); copy["submissions"] = values; return copy }
             return try envelope(submission)
+        }
+        if request.method == .patch, parts.count == 3, parts[0] == "homework-submissions", parts[2] == "review" {
+            let input=try body(request);var reviewed:[String:Any]?;var homework=items("homework")
+            for hi in homework.indices{var submissions=homework[hi]["submissions"] as? [[String:Any]] ?? [];if let si=submissions.firstIndex(where:{$0["id"] as? String==parts[1]}){for(k,v) in input where !(v is NSNull){submissions[si][k]=v};homework[hi]["submissions"]=submissions;reviewed=submissions[si];break}}
+            state["homework"]=homework;try save();guard let reviewed else{throw LocalStoreError.notFound};return try envelope(reviewed)
+        }
+        if request.method == .post, parts.count == 3, parts[0] == "sessions", parts[2] == "undo" {
+            let item=try updateItem("sessions",id:parts[1]){item in var copy=item;copy["status"]="SCHEDULED";copy.removeValue(forKey:"completedAt");copy["attendances"]=[];return copy};return try envelope(item)
         }
 
         return nil
@@ -334,6 +348,7 @@ actor LocalDemoStore {
             "plans":[["id":"plan-demo-1","studentId":"student-demo-1","title":"每日口算 15 分钟","description":"连续坚持四周","status":"ACTIVE","startsAt":now,"checkIns":[]]],
             "mistakes":[["id":"mistake-demo-1","studentId":"student-demo-1","subject":"数学","title":"工程问题","content":"两人合作完成工程需要多久？","answer":"6 天","analysis":"先求两人的工作效率之和","tags":["应用题"],"createdAt":now]],
             "feedback":[], "manual-courses":[], "orders":[], "hour-ledger":[],
+            "notification-preferences":[["id":"pref-demo-1","eventType":"SESSION_REMINDER","channel":"APNS","enabled":true],["id":"pref-demo-2","eventType":"HOMEWORK","channel":"IN_APP","enabled":true]],
             "notifications":[["id":"notice-demo-1","type":"SESSION_REMINDER","title":"明天有课","body":"周末数学小班将在明天开课","resourceType":"SESSION","resourceId":"session-demo-1","createdAt":now]],
             "announcements":[["id":"announcement-demo-1","title":"暑期课程安排","content":"暑期课程时间已经更新，请在课表中查看。","publishedAt":now]]
         ]

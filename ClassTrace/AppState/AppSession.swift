@@ -25,7 +25,14 @@ final class AppSession {
         do { user = try await repository.me() }
         catch { await repository.logout(); user = nil }
     }
-    func signIn(_ payload: AuthSessionPayload) { user = payload.user; errorMessage = nil }
+    func signIn(_ payload: AuthSessionPayload) {
+        user = payload.user
+        errorMessage = nil
+        if payload.user.roles?.contains(where: { $0.role == activeRole }) != true {
+            activeRole = payload.user.roles?.first?.role ?? "GUARDIAN"
+            UserDefaults.standard.set(activeRole, forKey: "classtrace.active-role")
+        }
+    }
     func switchRole(_ role: String) {
         guard user?.roles?.contains(where: { $0.role == role }) == true else { return }
         activeRole = role

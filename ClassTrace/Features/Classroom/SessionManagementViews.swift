@@ -10,7 +10,7 @@ struct ConfirmAttendanceView: View {
         Section("逐个记录考勤") { ForEach(members) { member in Picker(member.student?.name ?? "学生", selection: Binding(get: { statuses[member.studentId] ?? "PRESENT" }, set: { statuses[member.studentId] = $0 })) { Text("出勤").tag("PRESENT"); Text("请假").tag("LEAVE"); Text("缺席").tag("ABSENT") } } }
         Section { Text("只有出勤学生会按计划课时扣减；余额不足将标记为课时不足，不会出现负数。").font(.footnote).foregroundStyle(Color.ctTextSecondary) }
         if let error { Text(error).foregroundStyle(Color.ctDanger) }
-    }.navigationTitle("确认上课").toolbar { ToolbarItem(placement: .cancellationAction) { Button("取消") { dismiss() } }; ToolbarItem(placement: .confirmationAction) { Button("确认") { Task { await save() } } } } } }
+    }.mpFormChrome().navigationTitle("确认上课").toolbar { ToolbarItem(placement: .cancellationAction) { Button("取消") { dismiss() } }; ToolbarItem(placement: .confirmationAction) { Button("确认") { Task { await save() } } } } } }
     @MainActor private func save() async { do { let rows = members.map { ConfirmAttendanceRequest(studentId: $0.studentId, status: statuses[$0.studentId] ?? "PRESENT", deductHours: session.plannedHours.doubleValue, remark: nil) }; let value = try await ClassTraceRepository(client: dependencies.client).confirmSession(id: session.id, attendances: rows); await onSaved(value); dismiss() } catch { self.error = error.localizedDescription } }
 }
 
@@ -27,7 +27,7 @@ struct SessionEditView: View {
         if mode == .feedback { TextField("课堂总结", text: $summary, axis: .vertical); TextField("学生表现", text: $performance, axis: .vertical); TextField("课后作业说明", text: $homework, axis: .vertical) }
         if mode == .cancel { TextField("取消原因", text: $reason, axis: .vertical) }
         if let error { Text(error).foregroundStyle(Color.ctDanger) }
-    }.navigationTitle(title).toolbar { ToolbarItem(placement: .cancellationAction) { Button("取消") { dismiss() } }; ToolbarItem(placement: .confirmationAction) { Button("保存") { Task { await save() } } } } } }
+    }.mpFormChrome().navigationTitle(title).toolbar { ToolbarItem(placement: .cancellationAction) { Button("取消") { dismiss() } }; ToolbarItem(placement: .confirmationAction) { Button("保存") { Task { await save() } } } } } }
     private var title: String { switch mode { case .reschedule: "调整课节"; case .feedback: "课后反馈"; case .cancel: "取消课节" } }
     @MainActor private func save() async { do { let repository = ClassTraceRepository(client: dependencies.client); switch mode { case .reschedule: _ = try await repository.rescheduleSession(session.id, startsAt: startsAt, endsAt: startsAt.addingTimeInterval(Double(durationMinutes * 60))); case .feedback: _ = try await repository.saveSessionFeedback(session.id, summary: summary.nilIfEmpty, performance: performance.nilIfEmpty, homeworkNote: homework.nilIfEmpty); case .cancel: _ = try await repository.cancelSession(session.id, reason: reason.nilIfEmpty) }; await onSaved(); dismiss() } catch { self.error = error.localizedDescription } }
 }

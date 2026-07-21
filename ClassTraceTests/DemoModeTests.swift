@@ -57,6 +57,22 @@ final class DemoModeTests: XCTestCase {
         }
     }
 
+    func testAllLegacyMiniProgramPNGsDecodeFromApplicationBundle() throws {
+        let root = try XCTUnwrap(Bundle.main.resourceURL)
+        let urls = try XCTUnwrap(FileManager.default.enumerator(at: root, includingPropertiesForKeys: nil))
+            .compactMap { $0 as? URL }
+            .filter { $0.pathExtension.lowercased() == "png" && !$0.lastPathComponent.contains("AppIcon") }
+        let legacyNames = Set(urls.map { $0.deletingPathExtension().lastPathComponent })
+            .filter { LegacyImageLoader.image(named: $0) != nil }
+
+        XCTAssertGreaterThanOrEqual(legacyNames.count, 72, "The app bundle must contain and decode all 72 mini-program PNG assets")
+        for name in legacyNames {
+            let image = try XCTUnwrap(LegacyImageLoader.image(named: name), "Unreadable mini-program asset: \(name)")
+            XCTAssertGreaterThan(image.size.width, 0, "Zero-width mini-program asset: \(name)")
+            XCTAssertGreaterThan(image.size.height, 0, "Zero-height mini-program asset: \(name)")
+        }
+    }
+
     func testFixedScheduleCreatesPersistentSessions() async throws {
         let repository = ClassTraceRepository(client: client)
         let schedule = APIClassSchedule(mode: "weekly", text: "周一 10:00-11:00", days: ["monday"], items: [APIClassScheduleItem(id: UUID().uuidString, day: "周一", dayEn: "monday", date: nil, startTime: "10:00", endTime: "11:00", time: "10:00-11:00")])

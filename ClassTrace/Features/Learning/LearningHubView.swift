@@ -45,7 +45,27 @@ struct LearningHubView: View {
                 ForEach(materials) { item in Button { Task { await open(item) } } label: { learningCard(image: "material-brown", color: MPColor.gold, title: item.name, subtitle: item.category ?? "课堂资料", trailing: nil, footnote: ByteCountFormatter.string(fromByteCount: Int64(item.sizeBytes), countStyle: .file)) }.buttonStyle(.plain) }
             } else if selection == 2 {
                 if plans.isEmpty { MPCard { MPEmptyView(image: "plan-brown", title: "暂无学习计划", detail: "创建计划并坚持每日打卡") } }
-                ForEach(plans) { plan in MPCard { VStack(spacing: 12) { NavigationLink { PlanDetailView(plan: plan) { await load() } } label: { HStack(spacing: 12) { MPIconTile(image: "plan-brown", color: MPColor.gold, size: 46); VStack(alignment: .leading, spacing: 5) { Text(plan.title).font(.system(size: 15, weight: .semibold)); Text(plan.description ?? "").font(.system(size: 12)).foregroundStyle(MPColor.secondary) }; Spacer(); Text(plan.status.localizedStatus).font(.caption).foregroundStyle(MPColor.blue) } }.buttonStyle(.plain); Button("今日打卡") { Task { await checkIn(plan.id) } }.font(.system(size: 13, weight: .medium)).foregroundStyle(.white).frame(maxWidth: .infinity, minHeight: 38).background(MPColor.blue, in: Capsule()).disabled(plan.status != "ACTIVE") } }
+                ForEach(plans) { plan in
+                    MPCard {
+                        VStack(spacing: 12) {
+                            NavigationLink { PlanDetailView(plan: plan) { await load() } } label: {
+                                HStack(spacing: 12) {
+                                    MPIconTile(image: "plan-brown", color: MPColor.gold, size: 46)
+                                    VStack(alignment: .leading, spacing: 5) {
+                                        Text(plan.title).font(.system(size: 15, weight: .semibold))
+                                        Text(plan.description ?? "").font(.system(size: 12)).foregroundStyle(MPColor.secondary)
+                                    }
+                                    Spacer()
+                                    Text(plan.status.localizedStatus).font(.caption).foregroundStyle(MPColor.blue)
+                                }
+                            }.buttonStyle(.plain)
+                            Button("今日打卡") { Task { await checkIn(plan.id) } }
+                                .font(.system(size: 13, weight: .medium)).foregroundStyle(.white)
+                                .frame(maxWidth: .infinity, minHeight: 38).background(MPColor.blue, in: Capsule())
+                                .disabled(plan.status != "ACTIVE")
+                        }
+                    }
+                }
             } else {
                 if mistakes.isEmpty { MPCard { MPEmptyView(image: "mistakebook-red", title: "暂无错题", detail: "整理错题并标记掌握状态") } }
                 ForEach(mistakes) { item in NavigationLink { MistakeDetailView(mistake: item) { await load() } } label: { learningCard(image: "mistakebook-red", color: MPColor.red, title: item.title, subtitle: item.analysis ?? item.content ?? "", trailing: item.masteredAt == nil ? item.subject : "已掌握", footnote: nil) }.buttonStyle(.plain) }

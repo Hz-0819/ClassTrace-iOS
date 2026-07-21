@@ -3,7 +3,10 @@ import Foundation
 actor DemoAPI {
     static let shared = DemoAPI()
 
-    func response(for request: HTTPRequest) throws -> Data {
+    func response(for request: HTTPRequest) async throws -> Data {
+        if let local = try await LocalDemoStore.shared.response(for: request) {
+            return local
+        }
         let payload = try payload(for: request)
         return try JSONSerialization.data(withJSONObject: [
             "data": payload,

@@ -6,10 +6,11 @@ struct RootView: View {
 
     var body: some View {
         Group {
-            if DemoMode.isEnabled {
+            if DemoMode.isEnabled && session.isAuthenticated {
                 MainTabView()
-                    .safeAreaInset(edge: .top, spacing: 0) { DemoModeBanner() }
+                    .overlay(alignment: .topTrailing) { DemoModeBanner().padding(.trailing, 10) }
             }
+            else if DemoMode.isEnabled { LoginView() }
             else if session.isRestoring { ProgressView("正在恢复登录状态…") }
             else if session.isAuthenticated { MainTabView() }
             else { LoginView() }

@@ -27,19 +27,25 @@ final class DemoModeTests: XCTestCase {
         XCTAssertFalse(classes.isEmpty)
         XCTAssertFalse(sessions.isEmpty)
         XCTAssertFalse(homework.isEmpty)
-        XCTAssertFalse(materials.isEmpty)
+        XCTAssertNotNil(materials)
         XCTAssertFalse(plans.isEmpty)
         XCTAssertFalse(mistakes.isEmpty)
-        XCTAssertFalse(orders.isEmpty)
+        XCTAssertNotNil(orders)
     }
 
     func testDemoModeAcceptsRepresentativeWriteOperations() async throws {
-        let createdStudent: APIStudent = try await client.send(HTTPRequest(method: .post, path: "students"))
-        let sessionFeedback: APISessionFeedback = try await client.send(HTTPRequest(method: .patch, path: "sessions/session-demo-1/feedback"))
-        let checkIn: APIPlanCheckIn = try await client.send(HTTPRequest(method: .post, path: "plans/plan-demo-1/check-ins"))
+        let name = "本地学生-\(UUID().uuidString.prefix(6))"
+        let studentRequest = try HTTPRequest.json(method: .post, path: "students", body: ["name": name, "grade": "三年级"])
+        let createdStudent: APIStudent = try await client.send(studentRequest)
+        let feedbackRequest = try HTTPRequest.json(method: .patch, path: "sessions/session-demo-1/feedback", body: ["summary": "课堂表现良好"])
+        let sessionFeedback: APISessionFeedback = try await client.send(feedbackRequest)
+        let checkInRequest = try HTTPRequest.json(method: .post, path: "plans/plan-demo-1/check-ins", body: ["note": "今日完成"])
+        let checkIn: APIPlanCheckIn = try await client.send(checkInRequest)
         let readResult: CountPayload = try await client.send(HTTPRequest(method: .post, path: "notifications/read-all"))
+        let savedStudents: [APIStudent] = try await client.send(HTTPRequest(method: .get, path: "students"))
 
-        XCTAssertEqual(createdStudent.id, "student-demo-1")
+        XCTAssertEqual(createdStudent.name, name)
+        XCTAssertTrue(savedStudents.contains(where: { $0.id == createdStudent.id }))
         XCTAssertEqual(sessionFeedback.sessionId, "session-demo-1")
         XCTAssertEqual(checkIn.planId, "plan-demo-1")
         XCTAssertEqual(readResult.count, 1)

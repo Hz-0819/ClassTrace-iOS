@@ -19,12 +19,11 @@ enum DemoMode {
 
 struct DemoModeBanner: View {
     var body: some View {
-        Text("演示模式 · 已跳过登录 · 操作数据不会保存")
-            .font(.caption.weight(.semibold))
+        Text("测试数据")
+            .font(.system(size: 10, weight: .semibold))
             .foregroundStyle(.white)
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 7)
-            .background(Color.orange)
+            .padding(.horizontal, 8).padding(.vertical, 4)
+            .background(Color.orange, in: Capsule())
             .accessibilityLabel("当前为免登录演示模式，操作数据不会保存")
     }
 }

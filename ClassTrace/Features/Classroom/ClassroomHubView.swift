@@ -12,28 +12,67 @@ struct ClassroomHubView: View {
     enum Sheet: Identifiable { case newClass, newStudent, newCourse, join, bind; var id: Int { switch self { case .newClass: 0; case .newStudent: 1; case .newCourse: 2; case .join: 3; case .bind: 4 } } }
 
     var body: some View {
-        VStack(spacing: 0) {
-            Picker("内容", selection: $selection) { Text("班级").tag(0); Text("学生").tag(1); Text("课程").tag(2) }.pickerStyle(.segmented).padding()
-            if isLoading { Spacer(); ProgressView(); Spacer() }
-            else if let errorMessage { CTStateView(kind: .error, title: "加载失败", message: LocalizedStringKey(errorMessage), actionTitle: "重试") { Task { await load() } } }
-            else { content }
+        ScrollView(showsIndicators: false) {
+            LazyVStack(spacing: 20) {
+                MPPageHeader(greeting: "课程与班级", name: "教学安排") {
+                    Menu {
+                        Button("创建班级", systemImage: "person.3.fill") { sheet = .newClass }
+                        Button("添加学生", systemImage: "person.badge.plus") { sheet = .newStudent }
+                        Button("新建课程", systemImage: "books.vertical") { sheet = .newCourse }
+                        Button("使用邀请码加入", systemImage: "link") { sheet = .join }
+                        Button("绑定孩子", systemImage: "person.2.badge.gearshape") { sheet = .bind }
+                    } label: {
+                        Image(systemName: "plus").font(.system(size: 18, weight: .bold)).foregroundStyle(.white)
+                            .frame(width: 42, height: 42).background(.white.opacity(0.18), in: Circle())
+                    }
+                }
+                Picker("内容", selection: $selection) { Text("班级").tag(0); Text("学生").tag(1); Text("课程模板").tag(2) }
+                    .pickerStyle(.segmented).padding(.horizontal, 16)
+                if isLoading { ProgressView().tint(MPColor.blue).padding(.vertical, 80) }
+                else if let errorMessage { MPCard { MPEmptyView(image: "null", title: "加载失败", detail: errorMessage) }.padding(.horizontal, 16) }
+                else { content }
+            }.padding(.bottom, 22)
         }
-        .background(Color.ctPage).navigationTitle("班级与学生")
-        .toolbar { ToolbarItem(placement: .topBarTrailing) { Menu { Button("创建班级", systemImage: "person.3.fill") { sheet = .newClass }; Button("添加学生", systemImage: "person.badge.plus") { sheet = .newStudent }; Button("新建课程", systemImage: "books.vertical") { sheet = .newCourse }; Button("班级邀请码加入", systemImage: "link") { sheet = .join }; Button("绑定孩子", systemImage: "person.2.badge.gearshape") { sheet = .bind } } label: { Image(systemName: "plus.circle.fill") } } }
+        .background(MPColor.page).toolbar(.hidden, for: .navigationBar)
         .sheet(item: $sheet) { item in switch item { case .newClass: CreateClassSheet { await load() }; case .newStudent: CreateStudentSheet { await load() }; case .newCourse: NavigationStack { CourseEditorView { await load() } }; case .join: JoinClassSheet(students: students) { await load() }; case .bind: BindStudentSheet { await load() } } }
         .refreshable { await load() }.task { if classes.isEmpty && students.isEmpty { await load() } }
     }
     @ViewBuilder private var content: some View {
         if selection == 0 {
-            if classes.isEmpty { CTStateView(kind: .empty, title: "还没有班级", message: "教师可以创建班级，家长可以使用邀请码加入") }
-            else { List(classes) { item in NavigationLink { ClassroomDetailView(classId: item.id) } label: { VStack(alignment: .leading) { Text(item.name).font(.headline); Text("\(item.classType.localizedStatus) · \(item.billingMode == "PREPAID" ? "预付课时" : "现金记账")").foregroundStyle(Color.ctTextSecondary) } } }.listStyle(.plain) }
+            VStack(spacing: 12) {
+                MPSectionHeader(title: "进行中的班级 (\(classes.count))")
+                if classes.isEmpty { MPCard { MPEmptyView(image: "class", title: "还没有班级", detail: "教师可以创建班级，家长可以使用邀请码加入") } }
+                else { ForEach(classes) { item in classCard(item) } }
+            }.padding(.horizontal, 16)
         } else if selection == 1 {
-            if students.isEmpty { CTStateView(kind: .empty, title: "还没有学生", message: "创建学生档案后即可加入班级") }
-            else { List(students) { item in NavigationLink { StudentEditorView(student: item) { await load() } } label: { VStack(alignment: .leading) { Text(item.name).font(.headline); Text(item.grade ?? "未填写年级").foregroundStyle(Color.ctTextSecondary) } } }.listStyle(.plain) }
+            VStack(spacing: 12) {
+                MPSectionHeader(title: "学生管理 (\(students.count))")
+                if students.isEmpty { MPCard { MPEmptyView(image: "student", title: "还没有学生", detail: "创建学生档案后即可加入班级") } }
+                else { MPCard { VStack(spacing: 0) { ForEach(students) { item in MPMenuRow(title: "\(item.name) · \(item.grade ?? "未填写年级")", image: item.gender == "FEMALE" ? "girl" : "boy", color: MPColor.green) { StudentEditorView(student: item) { await load() } } } } } }
+            }.padding(.horizontal, 16)
         } else {
-            if courses.isEmpty { CTStateView(kind: .empty, title: "还没有课程模板", message: "创建班级时可以直接填写课程信息") }
-            else { List(courses) { item in NavigationLink { CourseEditorView(course: item) { await load() } } label: { VStack(alignment: .leading) { Text(item.name).font(.headline); Text(item.subject ?? "未分类").foregroundStyle(Color.ctTextSecondary) } } }.listStyle(.plain) }
+            VStack(spacing: 12) {
+                MPSectionHeader(title: "课程模板 (\(courses.count))")
+                if courses.isEmpty { MPCard { MPEmptyView(image: "book", title: "还没有课程模板", detail: "创建班级时可以直接填写课程信息") } }
+                else { MPCard { VStack(spacing: 0) { ForEach(courses) { item in MPMenuRow(title: "\(item.name) · \(item.subject ?? "未分类")", image: "book", color: MPColor.gold) { CourseEditorView(course: item) { await load() } } } } } }
+            }.padding(.horizontal, 16)
         }
+    }
+
+    private func classCard(_ item: APIClassroom) -> some View {
+        NavigationLink { ClassroomDetailView(classId: item.id) } label: {
+            MPCard {
+                HStack(spacing: 14) {
+                    MPIconTile(image: "class-blue", color: MPColor.blue, size: 56)
+                    VStack(alignment: .leading, spacing: 7) {
+                        HStack { Text(item.name).font(.system(size: 17, weight: .semibold)); Text(item.status.localizedStatus).font(.system(size: 11, weight: .medium)).foregroundStyle(MPColor.green).padding(.horizontal, 8).padding(.vertical, 3).background(MPColor.green.opacity(0.13), in: Capsule()) }
+                        Text("\(item.classType.localizedStatus) · \(item.billingMode == "PREPAID" ? "预付课时" : "现金记账")").font(.system(size: 13)).foregroundStyle(MPColor.secondary)
+                        if let location = item.location { Text(location).font(.system(size: 12)).foregroundStyle(MPColor.secondary) }
+                    }
+                    Spacer(); Image(systemName: "chevron.right").font(.caption.bold()).foregroundStyle(MPColor.secondary)
+                }
+            }
+        }.buttonStyle(.plain)
     }
     @MainActor private func load() async {
         isLoading = true; defer { isLoading = false }; errorMessage = nil

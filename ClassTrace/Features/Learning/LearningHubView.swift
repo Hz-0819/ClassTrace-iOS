@@ -16,6 +16,10 @@ struct LearningHubView: View {
     @State private var sheet: Sheet?
     enum Sheet: Int, Identifiable { case homework, material, plan, mistake; var id: Int { rawValue } }
 
+    init(initialSelection: Int = 0) {
+        _selection = State(initialValue: initialSelection)
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             Picker("教学内容", selection: $selection) { Text("作业").tag(0); Text("资料").tag(1); Text("计划").tag(2); Text("错题").tag(3) }.pickerStyle(.segmented).padding()

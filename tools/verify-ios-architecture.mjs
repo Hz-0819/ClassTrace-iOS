@@ -25,6 +25,10 @@ assert(text("project.yml").includes('iOS: "17.0"'), "deployment target must be i
 assert(!text("ClassTrace/App/ClassTraceApp.swift").includes("preferredColorScheme(.light)"), "app must not force light mode");
 assert(text("project.yml").includes("DEMO_MODE"), "demo branch must compile with DEMO_MODE enabled");
 assert(existsSync(join(root, "ClassTrace/Demo/DemoAPI.swift")), "demo API fixture is missing");
+assert(existsSync(join(root, "ClassTrace/Demo/LocalDemoStore.swift")), "on-device demo database is missing");
+assert(existsSync(join(root, "ClassTrace/Demo/LocalAccountStore.swift")), "local test account store is missing");
+assert(text("ClassTrace/Demo/LocalDemoStore.swift").includes("applicationSupportDirectory"), "local data must persist in Application Support");
+assert(text("ClassTrace/Demo/LocalAccountStore.swift").includes("kSecClassGenericPassword"), "local passwords must use Keychain");
 assert(text("ClassTrace/App/RootView.swift").includes("DemoModeBanner"), "demo build must display a persistent safety banner");
 
 const userModel = text("ClassTrace/Domain/Models/APIModels.swift");

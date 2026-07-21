@@ -36,6 +36,7 @@ const httpClient = text("ClassTrace/Networking/HTTPClient.swift");
 assert(httpClient.includes("Idempotency-Key"), "HTTP client must support idempotency keys");
 assert(httpClient.includes("x-request-id"), "HTTP client must propagate request ids");
 assert(httpClient.includes("Value: Decodable & Sendable"), "HTTP actor return values must cross concurrency boundaries as Sendable");
+assert(httpClient.includes("return try await perform(request, as: type, mayRefresh: true)"), "HTTP client live path must return its decoded value");
 assert(!httpClient.includes("CloudFunction"), "new HTTP client must not know CloudBase function names");
 
 const appDependencies = text("ClassTrace/App/AppDependencies.swift");

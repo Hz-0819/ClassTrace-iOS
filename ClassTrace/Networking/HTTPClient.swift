@@ -61,7 +61,7 @@ actor HTTPClient {
             let data = try await DemoAPI.shared.response(for: request)
             return try decoder.decode(APISuccessEnvelope<Value>.self, from: data).data
         }
-        try await perform(request, as: type, mayRefresh: true)
+        return try await perform(request, as: type, mayRefresh: true)
     }
 
     private func perform<Value: Decodable & Sendable>(_ request: HTTPRequest, as type: Value.Type, mayRefresh: Bool) async throws -> Value {

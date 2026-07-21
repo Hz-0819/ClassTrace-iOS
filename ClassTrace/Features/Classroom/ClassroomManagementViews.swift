@@ -1,4 +1,5 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct CourseEditorView: View {
     @Environment(\.dismiss) private var dismiss
@@ -8,6 +9,12 @@ struct CourseEditorView: View {
     @State private var name: String
     @State private var subject: String
     @State private var details: String
+    @State private var color: String
+    @State private var objectives: String
+    @State private var requirements: String
+    @State private var outlines: [APICourseOutline]
+    @State private var lessons: [APICourseLesson]
+    @State private var uploadingLesson: Int?
     @State private var error: String?
 
     init(course: APICourse? = nil, onSaved: @escaping () async -> Void) {
@@ -15,29 +22,69 @@ struct CourseEditorView: View {
         _name = State(initialValue: course?.name ?? "")
         _subject = State(initialValue: course?.subject ?? "")
         _details = State(initialValue: course?.description ?? "")
+        _color = State(initialValue: course?.color ?? "#7BA3C0")
+        _objectives = State(initialValue: course?.objectives ?? "")
+        _requirements = State(initialValue: course?.requirements ?? "")
+        _outlines = State(initialValue: course?.outlineSections ?? [APICourseOutline(id: UUID().uuidString, phaseTitle: "", phaseContent: "")])
+        _lessons = State(initialValue: course?.lessonSections ?? [APICourseLesson(id: UUID().uuidString, title: "", content: "", materials: [])])
     }
 
     var body: some View {
-        Form {
-            TextField("课程名称", text: $name)
-            TextField("科目", text: $subject)
-            TextField("课程说明", text: $details, axis: .vertical).lineLimit(3...8)
-            if let error { Text(error).foregroundStyle(Color.ctDanger) }
-            if let course { Button("删除课程", role: .destructive) { Task { await remove(course.id) } } }
+        ScrollView(showsIndicators: false) {
+            VStack(spacing: 20) {
+                courseSection("基本信息", "info-green") {
+                    courseField("课程名称", "例如：小学数学思维训练", $name)
+                    courseField("科目", "例如：数学", $subject)
+                    courseTextArea("课程简介", "简要描述课程内容和特色…", $details)
+                    VStack(alignment: .leading, spacing: 10) { Text("主题色").font(.system(size: 14, weight: .medium)); HStack { ForEach(Self.colors, id: \.0) { item in Button { color = item.0 } label: { Circle().fill(item.1).frame(width: 32, height: 32).overlay { if color == item.0 { Image(systemName: "checkmark").font(.caption.bold()).foregroundStyle(.white) } } }.buttonStyle(.plain) } } }
+                }
+                courseSection("课程信息", "book") {
+                    courseTextArea("课程目标", "描述学生完成本课程后能达到的目标…", $objectives)
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("课程内容").font(.system(size: 14, weight: .medium))
+                        ForEach($outlines) { $outline in
+                            VStack(alignment: .leading, spacing: 10) { Text("阶段 \((outlines.firstIndex(where: { $0.id == outline.id }) ?? 0) + 1)").font(.caption.bold()).foregroundStyle(MPColor.blue); TextField("阶段标题，如：基础入门", text: $outline.phaseTitle); TextField("描述本阶段的具体教学内容", text: $outline.phaseContent, axis: .vertical).lineLimit(2...5) }.padding(12).background(MPColor.page, in: RoundedRectangle(cornerRadius: 12))
+                        }
+                        Button { outlines.append(APICourseOutline(id: UUID().uuidString, phaseTitle: "", phaseContent: "")) } label: { Label("添加阶段", systemImage: "plus").frame(maxWidth: .infinity, minHeight: 42).overlay(RoundedRectangle(cornerRadius: 10).stroke(MPColor.blue, style: StrokeStyle(lineWidth: 1, dash: [5]))) }.buttonStyle(.plain).foregroundStyle(MPColor.blue)
+                    }
+                    courseTextArea("课程要求", "描述学生需要具备的基础条件或前置知识…", $requirements)
+                }
+                courseSection("课程课时信息", "timetable-blue") {
+                    Text("为每次课设置具体的教学内容和教学资料").font(.caption).foregroundStyle(MPColor.secondary)
+                    ForEach(Array(lessons.indices), id: \.self) { index in
+                        VStack(alignment: .leading, spacing: 10) {
+                            HStack { Text("第 \(index + 1) 课").font(.system(size: 14, weight: .bold)).foregroundStyle(MPColor.blue); Spacer(); if lessons.count > 1 { Button(role: .destructive) { lessons.remove(at: index) } label: { Image(systemName: "trash") } } }
+                            TextField("课时标题", text: $lessons[index].title)
+                            TextField("详细描述本节课的教学内容", text: $lessons[index].content, axis: .vertical).lineLimit(3...7)
+                            ForEach(lessons[index].materials) { material in HStack { MPLegacyImage(name: "file-blue", size: 20); Text(material.name).font(.caption).lineLimit(1); Spacer(); Button(role: .destructive) { lessons[index].materials.removeAll { $0.id == material.id } } label: { Image(systemName: "xmark.circle") } } }
+                            Button { uploadingLesson = index } label: { Label("上传资料", systemImage: "plus").font(.system(size: 13)).frame(maxWidth: .infinity, minHeight: 40).background(MPColor.blue.opacity(0.10), in: RoundedRectangle(cornerRadius: 9)) }.buttonStyle(.plain)
+                        }.padding(14).background(MPColor.page, in: RoundedRectangle(cornerRadius: 13))
+                    }
+                    Button { lessons.append(APICourseLesson(id: UUID().uuidString, title: "", content: "", materials: [])) } label: { Label("添加课时", systemImage: "plus").frame(maxWidth: .infinity, minHeight: 42).overlay(RoundedRectangle(cornerRadius: 10).stroke(MPColor.blue, style: StrokeStyle(lineWidth: 1, dash: [5]))) }.buttonStyle(.plain).foregroundStyle(MPColor.blue)
+                }
+                if let error { Text(error).font(.footnote).foregroundStyle(MPColor.red).padding(.horizontal, 16) }
+                if let course { Button("删除课程", role: .destructive) { Task { await remove(course.id) } }.padding() }
+            }.padding(.vertical, 16)
         }
-        .navigationTitle(course == nil ? "新建课程" : "编辑课程")
-        .toolbar { Button("保存") { Task { await save() } }.disabled(name.trimmingCharacters(in: .whitespaces).isEmpty) }
+        .background(MPColor.page).navigationTitle(course == nil ? "新建课程" : "编辑课程").navigationBarTitleDisplayMode(.inline)
+        .safeAreaInset(edge: .bottom) { Button { Task { await save() } } label: { Text("保存课程").font(.system(size: 17, weight: .semibold)).foregroundStyle(.white).frame(maxWidth: .infinity, minHeight: 50).background(MPColor.blue, in: Capsule()) }.buttonStyle(.plain).disabled(name.trimmingCharacters(in: .whitespaces).isEmpty).padding(.horizontal, 20).padding(.vertical, 10).background(.white) }
+        .fileImporter(isPresented: Binding(get: { uploadingLesson != nil }, set: { if !$0 { uploadingLesson = nil } }), allowedContentTypes: [.item]) { result in Task { await importMaterial(result) } }
     }
 
     @MainActor private func save() async {
         do {
             let repository = ClassTraceRepository(client: dependencies.client)
-            if let course { _ = try await repository.updateCourse(course.id, name: name, subject: subject.nilIfEmpty, description: details.nilIfEmpty) }
-            else { _ = try await repository.createCourse(name: name, subject: subject.nilIfEmpty, description: details.nilIfEmpty) }
+            if let course { _ = try await repository.updateCourse(course.id, name: name, subject: subject.nilIfEmpty, description: details.nilIfEmpty, color: color, objectives: objectives.nilIfEmpty, requirements: requirements.nilIfEmpty, outlineSections: outlines, lessonSections: lessons) }
+            else { _ = try await repository.createCourse(name: name, subject: subject.nilIfEmpty, description: details.nilIfEmpty, color: color, objectives: objectives.nilIfEmpty, requirements: requirements.nilIfEmpty, outlineSections: outlines, lessonSections: lessons) }
             await onSaved(); dismiss()
         } catch { self.error = error.localizedDescription }
     }
     @MainActor private func remove(_ id: String) async { do { try await ClassTraceRepository(client: dependencies.client).deleteCourse(id); await onSaved(); dismiss() } catch { self.error = error.localizedDescription } }
+    @MainActor private func importMaterial(_ result: Result<URL, Error>) async { do { guard let index = uploadingLesson else { return }; let url = try result.get(); guard url.startAccessingSecurityScopedResource() else { throw URLError(.noPermissionsToReadFile) }; defer { url.stopAccessingSecurityScopedResource() }; let data = try Data(contentsOf: url); let mime = UTType(filenameExtension: url.pathExtension)?.preferredMIMEType ?? "application/octet-stream"; let key = try await FileTransferService(client: dependencies.client).upload(data: data, fileName: url.lastPathComponent, mimeType: mime); lessons[index].materials.append(APICourseMaterial(id: UUID().uuidString, name: url.lastPathComponent, objectKey: key, mimeType: mime, sizeBytes: data.count)); uploadingLesson = nil } catch { self.error = error.localizedDescription } }
+    private func courseSection<Content: View>(_ title: String, _ icon: String, @ViewBuilder content: () -> Content) -> some View { VStack(spacing: 10) { HStack { MPIconTile(image: icon, color: MPColor.blue, size: 32); Text(title).font(.system(size: 17, weight: .semibold)); Spacer() }.padding(.horizontal, 16); MPCard { VStack(alignment: .leading, spacing: 18) { content() } }.padding(.horizontal, 12) } }
+    private func courseField(_ label: String, _ placeholder: String, _ text: Binding<String>) -> some View { VStack(alignment: .leading, spacing: 8) { Text(label).font(.system(size: 14, weight: .medium)); TextField(placeholder, text: text).padding(.horizontal, 12).frame(height: 46).background(MPColor.page, in: RoundedRectangle(cornerRadius: 9)) } }
+    private func courseTextArea(_ label: String, _ placeholder: String, _ text: Binding<String>) -> some View { VStack(alignment: .leading, spacing: 8) { Text(label).font(.system(size: 14, weight: .medium)); TextField(placeholder, text: text, axis: .vertical).lineLimit(3...8).padding(12).background(MPColor.page, in: RoundedRectangle(cornerRadius: 9)) } }
+    private static let colors: [(String, Color)] = [("#7BA3C0", MPColor.blue), ("#6AA08A", MPColor.green), ("#E8B4A8", MPColor.coral), ("#D4A574", MPColor.gold), ("#DC7878", MPColor.red)]
 }
 
 struct StudentEditorView: View {

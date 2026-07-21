@@ -31,7 +31,7 @@ struct MPLegacyImage: View {
 }
 
 @MainActor
-private enum LegacyImageLoader {
+enum LegacyImageLoader {
     static func image(named name: String) -> UIImage? {
         if let image = UIImage(named: name) { return image }
         let directories = ["LegacyImages", "Resources/LegacyImages", nil]

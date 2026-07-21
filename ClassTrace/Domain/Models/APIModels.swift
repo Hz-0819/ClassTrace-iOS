@@ -54,7 +54,15 @@ struct GuardianLink: Codable, Identifiable, Hashable, Sendable { let id: String;
 
 struct APICourse: Codable, Identifiable, Hashable, Sendable {
     let id: String; var name: String; var subject: String?; var description: String?; var status: String
+    var color: String?
+    var objectives: String?
+    var requirements: String?
+    var outlineSections: [APICourseOutline]?
+    var lessonSections: [APICourseLesson]?
 }
+struct APICourseOutline: Codable, Identifiable, Hashable, Sendable { var id: String; var phaseTitle: String; var phaseContent: String }
+struct APICourseLesson: Codable, Identifiable, Hashable, Sendable { var id: String; var title: String; var content: String; var materials: [APICourseMaterial] }
+struct APICourseMaterial: Codable, Identifiable, Hashable, Sendable { var id: String; var name: String; var objectKey: String; var mimeType: String; var sizeBytes: Int }
 struct APIClassroom: Codable, Identifiable, Hashable, Sendable {
     let id: String
     var name: String

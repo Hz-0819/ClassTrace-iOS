@@ -50,4 +50,22 @@ final class DemoModeTests: XCTestCase {
         XCTAssertEqual(checkIn.planId, "plan-demo-1")
         XCTAssertEqual(readResult.count, 1)
     }
+
+    func testLegacyMiniProgramIconsResolveFromApplicationBundle() {
+        for name in ["home-blue", "class-blue", "user-blue", "notice", "timetable-blue", "file-red"] {
+            XCTAssertNotNil(LegacyImageLoader.image(named: name), "Missing bundled mini-program icon: \(name)")
+        }
+    }
+
+    func testFixedScheduleCreatesPersistentSessions() async throws {
+        let repository = ClassTraceRepository(client: client)
+        let schedule = APIClassSchedule(mode: "weekly", text: "周一 10:00-11:00", days: ["monday"], items: [APIClassScheduleItem(id: UUID().uuidString, day: "周一", dayEn: "monday", date: nil, startTime: "10:00", endTime: "11:00", time: "10:00-11:00")])
+        let classroom = try await repository.createClass(name: "排课回归-\(UUID().uuidString.prefix(6))", type: "SMALL_GROUP", billingMode: "PREPAID", location: "测试教室", schedule: schedule, price: 100, totalHours: 10, lessonDurationMinutes: 60, startDate: Date())
+        let end = Calendar.current.date(byAdding: .day, value: 14, to: Date())!
+        let result = try await repository.generateSessions(classId: classroom.id, from: Date(), to: end, weekdays: [1,2,3,4,5,6,7], startTime: "10:00", durationMinutes: 60)
+        let sessions = try await repository.sessions(classId: classroom.id)
+        XCTAssertGreaterThan(result.created, 0)
+        XCTAssertEqual(sessions.count, result.created)
+        XCTAssertTrue(sessions.allSatisfy { $0.classId == classroom.id })
+    }
 }

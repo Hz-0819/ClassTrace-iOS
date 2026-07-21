@@ -105,8 +105,8 @@ struct ClassTraceRepository: Sendable {
     func verifyStoreKit(signedTransaction: String) async throws -> APISubscription { try await post("storekit/transactions", StoreKitRequest(signedTransaction: signedTransaction)) }
     func redeemActivationCode(_ code: String) async throws -> APISubscription { try await post("activation-codes/redeem", ActivationCodeRequest(code: code)) }
 
-    func createCourse(name: String, subject: String?, description: String?) async throws -> APICourse { try await post("courses", CourseMutation(name: name, subject: subject, description: description)) }
-    func updateCourse(_ id: String, name: String, subject: String?, description: String?) async throws -> APICourse { try await patch("courses/\(id)", CourseMutation(name: name, subject: subject, description: description)) }
+    func createCourse(name: String, subject: String?, description: String?, color: String? = nil, objectives: String? = nil, requirements: String? = nil, outlineSections: [APICourseOutline]? = nil, lessonSections: [APICourseLesson]? = nil) async throws -> APICourse { try await post("courses", CourseMutation(name: name, subject: subject, description: description, color: color, objectives: objectives, requirements: requirements, outlineSections: outlineSections, lessonSections: lessonSections)) }
+    func updateCourse(_ id: String, name: String, subject: String?, description: String?, color: String? = nil, objectives: String? = nil, requirements: String? = nil, outlineSections: [APICourseOutline]? = nil, lessonSections: [APICourseLesson]? = nil) async throws -> APICourse { try await patch("courses/\(id)", CourseMutation(name: name, subject: subject, description: description, color: color, objectives: objectives, requirements: requirements, outlineSections: outlineSections, lessonSections: lessonSections)) }
     func deleteCourse(_ id: String) async throws { try await delete("courses/\(id)") }
     func updateClass(_ id: String, name: String?, status: String?, location: String?) async throws -> APIClassroom { try await patch("classes/\(id)", ClassMutation(name: name, status: status, location: location)) }
     func deleteClass(_ id: String) async throws { try await delete("classes/\(id)") }
@@ -177,7 +177,7 @@ private struct ManualCourseMutation: Encodable { let name: String; let startsAt:
 private struct StoreKitRequest: Encodable { let signedTransaction: String }
 private struct ActivationCodeRequest: Encodable { let code: String }
 private struct EmptyRequest: Encodable {}
-private struct CourseMutation: Encodable { let name: String; let subject: String?; let description: String? }
+private struct CourseMutation: Encodable { let name: String; let subject: String?; let description: String?; let color: String?; let objectives: String?; let requirements: String?; let outlineSections: [APICourseOutline]?; let lessonSections: [APICourseLesson]? }
 private struct ClassMutation: Encodable { let name: String?; let status: String?; let location: String? }
 private struct MemberCreate: Encodable { let studentId: String; let initialHours: Double; let pricePerHour: Double }
 private struct MemberMutation: Encodable { let status: String?; let pricePerHour: Double? }

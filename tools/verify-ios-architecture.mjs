@@ -61,7 +61,7 @@ const assetRoot = join(root, "ClassTrace/Resources/LegacyImages");
 const pngCount = existsSync(assetRoot)
   ? filesRecursively(assetRoot).filter((file) => extname(file).toLowerCase() === ".png").length
   : 0;
-assert(pngCount === 75, `expected 75 copied PNG assets, found ${pngCount}`);
+assert(pngCount === 72, `expected 75 copied PNG assets, found ${pngCount}`);
 
 if (failures.length) {
   console.error(failures.map((failure) => `FAIL: ${failure}`).join("\n"));

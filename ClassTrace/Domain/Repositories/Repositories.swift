@@ -152,9 +152,9 @@ struct ClassTraceRepository: Sendable {
     func replyFeedback(_ id: String, reply: String, status: String) async throws -> APIFeedback { try await patch("feedback/\(id)/reply", FeedbackReply(reply: reply, status: status)) }
     func adminFeedback() async throws -> [APIFeedback] { try await get("admin/feedback") }
 
-    private func get<Value: Decodable>(_ path: String, query: [URLQueryItem] = []) async throws -> Value { try await client.send(HTTPRequest(method: .get, path: path, query: query)) }
-    private func post<Body: Encodable, Value: Decodable>(_ path: String, _ body: Body) async throws -> Value { try await client.send(.json(method: .post, path: path, body: body)) }
-    private func patch<Body: Encodable, Value: Decodable>(_ path: String, _ body: Body) async throws -> Value { try await client.send(.json(method: .patch, path: path, body: body)) }
+    private func get<Value: Decodable & Sendable>(_ path: String, query: [URLQueryItem] = []) async throws -> Value { try await client.send(HTTPRequest(method: .get, path: path, query: query)) }
+    private func post<Body: Encodable, Value: Decodable & Sendable>(_ path: String, _ body: Body) async throws -> Value { try await client.send(.json(method: .post, path: path, body: body)) }
+    private func patch<Body: Encodable, Value: Decodable & Sendable>(_ path: String, _ body: Body) async throws -> Value { try await client.send(.json(method: .patch, path: path, body: body)) }
     private func delete(_ path: String) async throws { try await client.sendWithoutResponse(HTTPRequest(method: .delete, path: path)) }
 }
 

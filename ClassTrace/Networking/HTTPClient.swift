@@ -56,11 +56,11 @@ actor HTTPClient {
         }
     }
 
-    func send<Value: Decodable>(_ request: HTTPRequest, as type: Value.Type = Value.self) async throws -> Value {
+    func send<Value: Decodable & Sendable>(_ request: HTTPRequest, as type: Value.Type = Value.self) async throws -> Value {
         try await perform(request, as: type, mayRefresh: true)
     }
 
-    private func perform<Value: Decodable>(_ request: HTTPRequest, as type: Value.Type, mayRefresh: Bool) async throws -> Value {
+    private func perform<Value: Decodable & Sendable>(_ request: HTTPRequest, as type: Value.Type, mayRefresh: Bool) async throws -> Value {
         var components = URLComponents(url: baseURL.appendingPathComponent(request.path), resolvingAgainstBaseURL: false)
         if !request.query.isEmpty { components?.queryItems = request.query }
         guard let url = components?.url else { throw HTTPClientError.invalidResponse }

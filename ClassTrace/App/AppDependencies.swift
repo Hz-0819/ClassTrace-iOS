@@ -8,7 +8,8 @@ final class AppDependencies {
 
     init(baseURL: URL = AppEnvironment.apiBaseURL, sessionVault: SessionVault = .shared) {
         self.sessionVault = sessionVault
-        self.client = HTTPClient(baseURL: baseURL, tokenProvider: sessionVault)
-        Task { await PushNotificationManager.shared.configure(client: self.client) }
+        let client = HTTPClient(baseURL: baseURL, tokenProvider: sessionVault)
+        self.client = client
+        Task { await PushNotificationManager.shared.configure(client: client) }
     }
 }

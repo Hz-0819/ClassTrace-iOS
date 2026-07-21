@@ -37,7 +37,11 @@ actor PushNotificationManager {
 
     private func register(_ token: String) async throws {
         guard let client else { return }
-        let environment = _isDebugAssertConfiguration() ? "development" : "production"
+        #if DEBUG
+        let environment = "development"
+        #else
+        let environment = "production"
+        #endif
         let _: APIDeviceToken = try await client.send(.json(method: .post, path: "devices", body: DeviceRegistration(token: token, environment: environment)))
         registeredToken = token
         pendingToken = nil

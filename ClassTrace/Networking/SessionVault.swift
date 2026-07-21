@@ -37,11 +37,11 @@ actor SessionVault: AccessTokenProviding {
             request.httpBody = try JSONEncoder().encode(RefreshBody(refreshToken: refresh))
             let (data, response) = try await URLSession.shared.data(for: request)
             guard let http = response as? HTTPURLResponse else { throw URLError(.badServerResponse) }
-            if http.statusCode == 401 { await self.clear(); return nil }
+            if http.statusCode == 401 { self.clear(); return nil }
             guard (200..<300).contains(http.statusCode) else { throw URLError(.badServerResponse) }
             let decoder = JSONDecoder(); decoder.dateDecodingStrategy = .iso8601
             let payload = try decoder.decode(APISuccessEnvelope<RefreshPayload>.self, from: data).data
-            await self.save(accessToken: payload.accessToken, refreshToken: payload.refreshToken)
+            self.save(accessToken: payload.accessToken, refreshToken: payload.refreshToken)
             return payload.accessToken
         }
         refreshTask = task

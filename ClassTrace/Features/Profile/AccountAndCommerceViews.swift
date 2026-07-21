@@ -14,7 +14,7 @@ struct AccountSettingsView: View {
         if let error { Text(error).foregroundStyle(Color.ctDanger) }
         Section { Button("注销账号", role: .destructive) { confirmDelete = true } }
     }.navigationTitle("账号设置").onAppear { displayName = session.user?.displayName ?? "" }.alert("确认注销账号？", isPresented: $confirmDelete) { Button("取消", role: .cancel) {}; Button("注销", role: .destructive) { Task { await removeAccount() } } } message: { Text("登录会话和推送设备将失效，账号进入删除状态。") } }
-    @MainActor private func save() async { do { session.user = try await ClassTraceRepository(client: dependencies.client).updateProfile(displayName: displayName, avatarURL: session.user?.avatarUrl) } catch { self.error = error.localizedDescription } }
+    @MainActor private func save() async { do { session.user = try await ClassTraceRepository(client: dependencies.client).updateProfile(displayName: displayName, avatarURL: session.user?.avatarUrl?.absoluteString) } catch { self.error = error.localizedDescription } }
     @MainActor private func role(_ role: String) async { do { session.user = try await ClassTraceRepository(client: dependencies.client).ensureRole(role) } catch { self.error = error.localizedDescription } }
     @MainActor private func sendCode() async { do { let normalized = phone.hasPrefix("+") ? phone : "+86\(phone)"; let result = try await ClassTraceRepository(client: dependencies.client).requestBindPhoneCode(normalized); phone = normalized; developmentCode = result.developmentCode } catch { self.error = error.localizedDescription } }
     @MainActor private func linkPhone() async { do { session.user = try await ClassTraceRepository(client: dependencies.client).linkPhone(phone, code: code); code = "" } catch { self.error = error.localizedDescription } }

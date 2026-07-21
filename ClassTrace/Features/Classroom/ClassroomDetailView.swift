@@ -35,7 +35,7 @@ struct ClassroomDetailView: View {
         .sheet(isPresented: $showGenerateSchedule) { GenerateScheduleView(classId: classId) { await load() } }
         .refreshable { await load() }.task { if classroom == nil { await load() } }
     }
-    @MainActor private func load() async { do { async let c = ClassTraceRepository(client: dependencies.client).classDetail(classId); async let s = ClassTraceRepository(client: dependencies.client).students(); (classroom, students) = try await (c, s); errorMessage = nil } catch { errorMessage = error.localizedDescription } }
+    @MainActor private func load() async { do { let client = dependencies.client; async let c = ClassTraceRepository(client: client).classDetail(classId); async let s = ClassTraceRepository(client: client).students(); (classroom, students) = try await (c, s); errorMessage = nil } catch { errorMessage = error.localizedDescription } }
 }
 
 struct SessionDetailView: View {

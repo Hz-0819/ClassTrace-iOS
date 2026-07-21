@@ -83,8 +83,8 @@ struct DashboardView: View {
                 HStack(alignment: .top, spacing: 4) {
                     quickLink("课表", "timetable-blue", MPColor.blue) { ScheduleCalendarView() }
                     quickLink("学生", "student-green", MPColor.green) { ClassroomHubView() }
-                    quickLink("作业", "file-red", MPColor.red) { LearningHubView(initialSelection: 0) }
-                    quickLink("资料", "material-brown", MPColor.gold) { LearningHubView(initialSelection: 1) }
+                    quickLink(session.activeRole == "TEACHER" ? "教学任务" : "作业提交", "file-red", MPColor.red) { LearningHubView(initialSelection: 0) }
+                    quickLink(session.activeRole == "TEACHER" ? "经营概览" : "课时明细", "wallet-brown", MPColor.gold) { session.activeRole == "TEACHER" ? AnyView(BusinessOverviewView()) : AnyView(ClassroomHubView()) }
                 }
             }
         }.padding(.horizontal, 16)

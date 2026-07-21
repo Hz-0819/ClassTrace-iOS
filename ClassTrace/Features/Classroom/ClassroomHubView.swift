@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ClassroomHubView: View {
     @Environment(AppDependencies.self) private var dependencies
+    @Environment(AppSession.self) private var session
     @State private var classes: [APIClassroom] = []
     @State private var courses: [APICourse] = []
     @State private var students: [APIStudent] = []
@@ -10,17 +11,21 @@ struct ClassroomHubView: View {
     @State private var errorMessage: String?
     @State private var sheet: Sheet?
     enum Sheet: Identifiable { case newClass, newStudent, newCourse, join, bind; var id: Int { switch self { case .newClass: 0; case .newStudent: 1; case .newCourse: 2; case .join: 3; case .bind: 4 } } }
+    private var isTeacher: Bool { session.activeRole == "TEACHER" }
 
     var body: some View {
         ScrollView(showsIndicators: false) {
             LazyVStack(spacing: 20) {
                 MPPageHeader(greeting: "课程与班级", name: "教学安排") {
                     Menu {
-                        Button("创建班级", systemImage: "person.3.fill") { sheet = .newClass }
-                        Button("添加学生", systemImage: "person.badge.plus") { sheet = .newStudent }
-                        Button("新建课程", systemImage: "books.vertical") { sheet = .newCourse }
-                        Button("使用邀请码加入", systemImage: "link") { sheet = .join }
-                        Button("绑定孩子", systemImage: "person.2.badge.gearshape") { sheet = .bind }
+                        if isTeacher {
+                            Button("创建班级", systemImage: "person.3.fill") { sheet = .newClass }
+                            Button("添加学生", systemImage: "person.badge.plus") { sheet = .newStudent }
+                            Button("新建课程模板", systemImage: "books.vertical") { sheet = .newCourse }
+                        } else {
+                            Button("使用邀请码加入课程", systemImage: "link") { sheet = .join }
+                            Button("绑定孩子", systemImage: "person.2.badge.gearshape") { sheet = .bind }
+                        }
                     } label: {
                         Image(systemName: "plus").font(.system(size: 18, weight: .bold)).foregroundStyle(.white)
                             .frame(width: 42, height: 42).background(.white.opacity(0.18), in: Circle())

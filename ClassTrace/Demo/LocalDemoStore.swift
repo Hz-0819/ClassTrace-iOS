@@ -99,11 +99,11 @@ actor LocalDemoStore {
         }
         if request.method == .post, parts.count == 3, parts[0] == "refunds", parts[2] == "resolve" {
             let input=try body(request);var resolved:[String:Any]?
-            var orders=items("orders");for oi in orders.indices{var refunds=orders[oi]["refunds"] as? [[String:Any]] ?? [];if let ri=refunds.firstIndex(where:{$0["id"] as? String==parts[1]}){refunds[ri]["status"]=input["status"] ?? "REJECTED";orders[oi]["refunds"]=refunds;resolved=refunds[ri];break}};state["orders"]=orders;try save();return try envelope(resolved ?? NSNull())
+            var orders=items("orders");for oi in orders.indices{var refunds=orders[oi]["refunds"] as? [[String:Any]] ?? [];if let ri=refunds.firstIndex(where:{$0["id"] as? String==parts[1]}){refunds[ri]["status"]=input["status"] ?? "REJECTED";orders[oi]["refunds"]=refunds;resolved=refunds[ri];break}};state["orders"]=orders;try save();guard let resolved else{throw LocalStoreError.notFound};return try envelope(resolved)
         }
         if request.method == .post, parts.count == 4, parts[0] == "class-members", parts[2] == "hours", parts[3] == "recharge" {
             let input=try body(request),hours=Self.number(input["hours"]);var updated:[String:Any]?
-            var classes=items("classes");for ci in classes.indices { var members=classes[ci]["members"] as? [[String:Any]] ?? [];if let mi=members.firstIndex(where:{$0["id"] as? String==parts[1]}) { let total=Self.number(members[mi]["totalHours"])+hours;let balance=Self.number(members[mi]["remainingHours"])+hours;members[mi]["totalHours"]=total;members[mi]["remainingHours"]=balance;classes[ci]["members"]=members;let entry:[String:Any]=["id":UUID().uuidString,"memberId":parts[1],"studentId":members[mi]["studentId"] ?? "","type":"RECHARGE","delta":hours,"balanceAfter":balance,"remark":input["remark"] ?? NSNull(),"createdAt":Self.date(Date()),"student":members[mi]["student"] ?? NSNull()];var ledger=state["hour-ledger"] as? [[String:Any]] ?? [];ledger.insert(entry,at:0);state["hour-ledger"]=ledger;updated=entry;break } };state["classes"]=classes;try save();return try envelope(updated ?? NSNull())
+            var classes=items("classes");for ci in classes.indices { var members=classes[ci]["members"] as? [[String:Any]] ?? [];if let mi=members.firstIndex(where:{$0["id"] as? String==parts[1]}) { let total=Self.number(members[mi]["totalHours"])+hours;let balance=Self.number(members[mi]["remainingHours"])+hours;members[mi]["totalHours"]=total;members[mi]["remainingHours"]=balance;classes[ci]["members"]=members;let entry:[String:Any]=["id":UUID().uuidString,"memberId":parts[1],"studentId":members[mi]["studentId"] ?? "","type":"RECHARGE","delta":hours,"balanceAfter":balance,"remark":input["remark"] ?? NSNull(),"createdAt":Self.date(Date()),"student":members[mi]["student"] ?? NSNull()];var ledger=state["hour-ledger"] as? [[String:Any]] ?? [];ledger.insert(entry,at:0);state["hour-ledger"]=ledger;updated=entry;break } };state["classes"]=classes;try save();guard let updated else{throw LocalStoreError.notFound};return try envelope(updated)
         }
         if request.method == .post, parts.count == 3, parts[0] == "plans", parts[2] == "check-ins" {
             let input = try body(request)
@@ -236,7 +236,10 @@ actor LocalDemoStore {
     private func normalizedAttendances(sessionId: String, rows: [[String: Any]]) -> [[String: Any]] {
         rows.map { row in
             let studentId = row["studentId"] as? String ?? ""
-            return ["id": UUID().uuidString, "sessionId": sessionId, "studentId": studentId, "status": row["status"] ?? "PRESENT", "deductHours": Self.number(row["deductHours"]), "remark": row["remark"] ?? NSNull(), "student": items("students").first(where: { $0["id"] as? String == studentId }) ?? NSNull()]
+            var value: [String: Any] = ["id": UUID().uuidString, "sessionId": sessionId, "studentId": studentId, "status": row["status"] ?? "PRESENT", "deductHours": Self.number(row["deductHours"]), "remark": row["remark"] ?? NSNull()]
+            if let student = items("students").first(where: { $0["id"] as? String == studentId }) { value["student"] = student }
+            else { value["student"] = NSNull() }
+            return value
         }
     }
 

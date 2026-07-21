@@ -7,7 +7,7 @@ struct ProfileHubView: View {
     @State private var students: [APIStudent] = []
     @State private var points: APIPoints?
 
-    private var isTeacher: Bool { session.user?.roles?.contains(where: { $0.role == "TEACHER" }) == true }
+    private var isTeacher: Bool { session.activeRole == "TEACHER" }
 
     var body: some View {
         ScrollView(showsIndicators: false) {
@@ -34,7 +34,10 @@ struct ProfileHubView: View {
                 ZStack { Circle().fill(.white.opacity(0.22)); MPLegacyImage(name: "avatar", size: 54) }.frame(width: 66, height: 66).overlay(Circle().stroke(.white.opacity(0.5), lineWidth: 2))
                 VStack(alignment: .leading, spacing: 7) {
                     HStack { Text(session.user?.displayName ?? "课迹用户").font(.system(size: 22, weight: .bold)); if DemoMode.isEnabled { Text("演示模式").font(.system(size: 10, weight: .semibold)).padding(.horizontal, 7).padding(.vertical, 3).background(.white.opacity(0.2), in: Capsule()) } }
-                    Text((session.user?.roles ?? []).map { $0.role.localizedStatus }.joined(separator: " · ")).font(.system(size: 13)).opacity(0.8)
+                    Menu {
+                        if session.user?.roles?.contains(where: { $0.role == "TEACHER" }) == true { Button("切换为教师身份") { session.switchRole("TEACHER") } }
+                        if session.user?.roles?.contains(where: { $0.role == "GUARDIAN" }) == true { Button("切换为家长身份") { session.switchRole("GUARDIAN") } }
+                    } label: { HStack(spacing: 4) { Text(session.activeRole.localizedStatus); Image(systemName: "chevron.down").font(.caption2) }.font(.system(size: 13)).foregroundStyle(.white.opacity(0.82)) }
                 }.foregroundStyle(.white)
                 Spacer()
                 NavigationLink { AccountSettingsView() } label: { Image(systemName: "gearshape.fill").foregroundStyle(.white).frame(width: 42, height: 42).background(.white.opacity(0.2), in: Circle()) }

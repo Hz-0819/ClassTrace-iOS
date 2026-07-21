@@ -22,13 +22,28 @@ jobs:
         run: xcodegen generate
 
       - name: Build Release (no signing)
+        shell: bash
         run: |
+          set -o pipefail
+          set +e
           xcodebuild -scheme ClassTrace \
             -configuration Release \
             -destination 'generic/platform=iOS' \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
-            -derivedDataPath build
+            -derivedDataPath build 2>&1 | tee xcodebuild-release.log
+          status=${PIPESTATUS[0]}
+          if [ "$status" -ne 0 ]; then
+            grep -E "(^|: )(error:|fatal error:)" xcodebuild-release.log | head -30 | while IFS= read -r line; do echo "::error::$line"; done
+          fi
+          exit "$status"
+
+      - name: Upload release build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ClassTrace-release-build-log
+          path: xcodebuild-release.log
 
       - name: Package IPA
         run: |
@@ -56,10 +71,25 @@ jobs:
         run: xcodegen generate
 
       - name: Run Tests
+        shell: bash
         run: |
+          set -o pipefail
+          set +e
           xcodebuild test -scheme ClassTrace \
             -destination 'platform=iOS Simulator,name=iPhone 17' \
-            CODE_SIGNING_ALLOWED=NO
+            CODE_SIGNING_ALLOWED=NO 2>&1 | tee xcodebuild-tests.log
+          status=${PIPESTATUS[0]}
+          if [ "$status" -ne 0 ]; then
+            grep -E "(^|: )(error:|fatal error:)|Test Case.*failed" xcodebuild-tests.log | head -30 | while IFS= read -r line; do echo "::error::$line"; done
+          fi
+          exit "$status"
+
+      - name: Upload test log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ClassTrace-test-log
+          path: xcodebuild-tests.log
 
   verify:
     name: Verify Architecture

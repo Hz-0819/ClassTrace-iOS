@@ -32,17 +32,41 @@ struct MPLegacyImage: View {
 
 @MainActor
 enum LegacyImageLoader {
+    private static var decodedImages: [String: UIImage] = [:]
+    private static let bundledPNGs: [String: URL] = {
+        guard let root = Bundle.main.resourceURL,
+              let enumerator = FileManager.default.enumerator(
+                  at: root,
+                  includingPropertiesForKeys: [.isRegularFileKey],
+                  options: [.skipsHiddenFiles]
+              )
+        else { return [:] }
+
+        var index: [String: URL] = [:]
+        for case let url as URL in enumerator where url.pathExtension.lowercased() == "png" {
+            index[url.deletingPathExtension().lastPathComponent.lowercased()] = url
+        }
+        return index
+    }()
+
     static func image(named name: String) -> UIImage? {
-        if let image = UIImage(named: name) { return image }
+        let key = name.lowercased()
+        if let cached = decodedImages[key] { return cached }
+        if let image = UIImage(named: name) {
+            decodedImages[key] = image
+            return image
+        }
         let directories = ["LegacyImages", "Resources/LegacyImages", nil]
         for directory in directories {
             if let url = Bundle.main.url(forResource: name, withExtension: "png", subdirectory: directory),
-               let image = UIImage(contentsOfFile: url.path) { return image }
+               let image = UIImage(contentsOfFile: url.path) {
+                decodedImages[key] = image
+                return image
+            }
         }
-        if let root = Bundle.main.resourceURL,
-           let enumerator = FileManager.default.enumerator(at: root, includingPropertiesForKeys: nil),
-           let url = enumerator.compactMap({ $0 as? URL }).first(where: { $0.lastPathComponent.caseInsensitiveCompare("\(name).png") == .orderedSame }) {
-            return UIImage(contentsOfFile: url.path)
+        if let url = bundledPNGs[key], let image = UIImage(contentsOfFile: url.path) {
+            decodedImages[key] = image
+            return image
         }
         return nil
     }

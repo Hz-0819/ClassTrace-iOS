@@ -33,7 +33,7 @@ struct PointsCenterView: View {
     }
     private var growth: (name: String, floor: Int, ceiling: Int) {
         let balance = points?.balance ?? 0
-        switch balance {
+        return switch balance {
         case ..<100: ("成长树苗", 0, 100)
         case ..<300: ("成长小树", 100, 300)
         case ..<600: ("成长大树", 300, 600)

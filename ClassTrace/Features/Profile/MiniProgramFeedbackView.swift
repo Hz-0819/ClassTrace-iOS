@@ -134,7 +134,7 @@ struct FeedbackCenterView: View {
 
     private var canSubmit: Bool { !content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
     private func fieldTitle(_ title: String, required: Bool) -> some View { HStack(spacing: 4) { Text(title).font(.system(size: 16, weight: .bold)); if required { Text("*").foregroundStyle(MPColor.red) } } }
-    private func attachmentButton(_ title: String, _ symbol: String) -> some View { Label(title, systemImage: symbol).font(.system(size: 13, weight: .semibold)).foregroundStyle(MPColor.blue).frame(maxWidth: .infinity).padding(12).background(MPColor.blue.opacity(0.1), in: RoundedRectangle(cornerRadius: 11)) }
+    private nonisolated func attachmentButton(_ title: String, _ symbol: String) -> some View { Label(title, systemImage: symbol).font(.system(size: 13, weight: .semibold)).foregroundStyle(MPColor.blue).frame(maxWidth: .infinity).padding(12).background(MPColor.blue.opacity(0.1), in: RoundedRectangle(cornerRadius: 11)) }
 
     private func importFiles(_ result: Result<[URL], Error>) {
         do {

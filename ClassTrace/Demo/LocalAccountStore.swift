@@ -47,6 +47,17 @@ actor LocalAccountStore {
         return Self.user(profile)
     }
 
+    static func deletePersistedAccount(_ account: String) throws {
+        let normalized = account.lowercased()
+        let key = "classtrace.local.accounts.v1"
+        var values: [LocalAccount] = []
+        if let data = UserDefaults.standard.data(forKey: key) { values = (try? JSONDecoder().decode([LocalAccount].self, from: data)) ?? [] }
+        values.removeAll { $0.account == normalized }
+        UserDefaults.standard.set(try JSONEncoder().encode(values), forKey: key)
+        SecItemDelete([kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: service, kSecAttrAccount as String: normalized] as CFDictionary)
+        LocalProfileCache.remove(account: normalized)
+    }
+
     private static func user(_ profile: LocalAccount) -> APIUser {
         APIUser(id: "local-\(profile.account)", displayName: profile.displayName, avatarUrl: nil, status: "ACTIVE", roles: [UserRoleRecord(role: profile.role)], identities: [])
     }
@@ -76,4 +87,20 @@ enum LocalAccountError: LocalizedError {
         case .cannotSave: "无法把密码保存到本机钥匙串"
         }
     }
+}
+
+enum LocalProfileCache {
+    private static func key(_ account: String) -> String { "classtrace.local.profile.\(account.lowercased())" }
+
+    static func load(account: String) -> APIUser? {
+        guard let data = UserDefaults.standard.data(forKey: key(account)) else { return nil }
+        return try? JSONDecoder().decode(APIUser.self, from: data)
+    }
+
+    static func save(_ user: APIUser, account: String? = nil) {
+        let value = account ?? user.id.replacingOccurrences(of: "local-", with: "")
+        if let data = try? JSONEncoder().encode(user) { UserDefaults.standard.set(data, forKey: key(value)) }
+    }
+
+    static func remove(account: String) { UserDefaults.standard.removeObject(forKey: key(account)) }
 }

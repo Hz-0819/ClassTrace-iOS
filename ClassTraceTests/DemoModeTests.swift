@@ -21,7 +21,8 @@ final class DemoModeTests: XCTestCase {
         let points: APIPoints = try await client.send(HTTPRequest(method: .get, path: "points"))
         let orders: [APIOrder] = try await client.send(HTTPRequest(method: .get, path: "orders"))
 
-        XCTAssertEqual(user.displayName, "演示教师")
+        XCTAssertFalse(user.displayName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+        XCTAssertFalse(user.roles?.isEmpty ?? true)
         XCTAssertFalse(home.sessions.isEmpty)
         XCTAssertFalse(students.isEmpty)
         XCTAssertFalse(courses.isEmpty)
@@ -130,5 +131,46 @@ final class DemoModeTests: XCTestCase {
         try await repository.removeGuardian(studentId: student.id, guardianId: guardianId)
         let unbound = try await repository.studentDetail(student.id)
         XCTAssertTrue(unbound.guardians?.isEmpty == true)
+    }
+
+    func testProfileRolePhoneExportAndEntitlementPersistLocally() async throws {
+        let repository = ClassTraceRepository(client: client)
+        let displayName = "本地资料-\(UUID().uuidString.prefix(5))"
+
+        let updated = try await repository.updateProfile(displayName: displayName, avatarURL: nil)
+        XCTAssertEqual(updated.displayName, displayName)
+        let withGuardian = try await repository.ensureRole("GUARDIAN")
+        XCTAssertTrue(withGuardian.roles?.contains(where: { $0.role == "GUARDIAN" }) == true)
+        let linked = try await repository.linkPhone("+8613800000000", code: "123456")
+        XCTAssertTrue(linked.identities?.contains(where: { $0.provider == "PHONE" && $0.verifiedAt != nil }) == true)
+
+        let exported = try await repository.exportAccount()
+        if case let .object(payload) = exported { XCTAssertNotNil(payload["profile"]) }
+        else { XCTFail("Expected an object account export") }
+
+        _ = try await repository.redeemActivationCode("VIPDEMO2026")
+        let entitlements = try await repository.entitlements()
+        XCTAssertTrue(entitlements.active)
+        XCTAssertFalse(entitlements.grants.isEmpty)
+    }
+
+    func testDirectSettlementOrderPaymentAndRefundPersistLocally() async throws {
+        let repository = ClassTraceRepository(client: client)
+        let student = try await repository.createStudent(name: "账单学生-\(UUID().uuidString.prefix(4))", grade: "五年级", linkAsGuardian: true)
+        let classroom = try await repository.createClass(name: "账单班级-\(UUID().uuidString.prefix(4))", type: "ONE_ON_ONE", billingMode: "PREPAID", location: nil)
+        let order = try await repository.createOrder(studentId: student.id, classId: classroom.id, amountCents: 12_000, hours: 10)
+        XCTAssertEqual(order.status, "PENDING")
+
+        let paid = try await repository.recordPayment(orderId: order.id, amountCents: order.totalAmountCents, provider: "WECHAT", transactionId: "TEST-\(UUID().uuidString)")
+        XCTAssertEqual(paid.status, "PAID")
+        XCTAssertEqual(paid.payments?.count, 1)
+
+        let refund = try await repository.requestRefund(orderId: order.id, amountCents: 2_400, hours: 2, reason: "剩余课时退款")
+        XCTAssertEqual(refund.status, "REQUESTED")
+        let resolved = try await repository.resolveRefund(refund.id, status: "REFUNDED", providerRefundId: UUID().uuidString)
+        XCTAssertEqual(resolved.status, "REFUNDED")
+
+        let stored = try await repository.orderDetail(order.id)
+        XCTAssertEqual(stored.refunds?.first(where: { $0.id == refund.id })?.status, "REFUNDED")
     }
 }

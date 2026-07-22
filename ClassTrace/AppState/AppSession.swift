@@ -14,7 +14,8 @@ final class AppSession {
             if UserDefaults.standard.string(forKey: "classtrace.local.active-account") == nil {
                 UserDefaults.standard.set("demo", forKey: "classtrace.local.active-account")
             }
-            user = DemoMode.user
+            let account = UserDefaults.standard.string(forKey: "classtrace.local.active-account") ?? "demo"
+            user = LocalProfileCache.load(account: account) ?? DemoMode.user
             isRestoring = false
         }
     }
@@ -39,11 +40,14 @@ final class AppSession {
         UserDefaults.standard.set(role, forKey: "classtrace.active-role")
     }
     func signInLocal(_ user: APIUser) {
-        self.user = user
+        let account = user.id.replacingOccurrences(of: "local-", with: "")
+        let cached = LocalProfileCache.load(account: account)
+        self.user = cached ?? user
+        if cached == nil { LocalProfileCache.save(user, account: account) }
         errorMessage = nil
         activeRole = user.roles?.first?.role ?? "GUARDIAN"
         UserDefaults.standard.set(activeRole, forKey: "classtrace.active-role")
-        UserDefaults.standard.set(user.id.replacingOccurrences(of: "local-", with: ""), forKey: "classtrace.local.active-account")
+        UserDefaults.standard.set(account, forKey: "classtrace.local.active-account")
         UserDefaults.standard.set(false, forKey: "classtrace.local.requires-login")
     }
     func signOut(using repository: AuthRepository) async {

@@ -24,6 +24,6 @@ struct DemoModeBanner: View {
             .foregroundStyle(.white)
             .padding(.horizontal, 8).padding(.vertical, 4)
             .background(Color.orange, in: Capsule())
-            .accessibilityLabel("当前为免登录演示模式，操作数据不会保存")
+            .accessibilityLabel("当前为本地测试模式，操作数据会保存在这台设备上")
     }
 }

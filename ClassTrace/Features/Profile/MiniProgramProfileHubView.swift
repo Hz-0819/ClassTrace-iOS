@@ -57,8 +57,26 @@ struct ProfileHubView: View {
                 VStack(alignment: .leading, spacing: 7) {
                     Text(session.user?.displayName ?? (isTeacher ? "教师用户" : "家长用户"))
                         .font(.system(size: 22, weight: .bold))
-                    Text("\(isTeacher ? "教师" : "家长")账号 · ID: \((session.user?.id ?? "12138").suffix(6))")
-                        .font(.system(size: 12)).foregroundStyle(.white.opacity(0.8))
+                    HStack(spacing: 8) {
+                        Text("\(isTeacher ? "教师" : "家长")账号 · ID: \((session.user?.id ?? "12138").suffix(6))")
+                        if availableRoles.count > 1 {
+                            Menu {
+                                ForEach(availableRoles, id: \.self) { role in
+                                    Button {
+                                        session.switchRole(role)
+                                        Task { await load() }
+                                    } label: {
+                                        Label(role == "TEACHER" ? "教师身份" : "家长身份", systemImage: session.activeRole == role ? "checkmark.circle.fill" : "person.crop.circle")
+                                    }
+                                }
+                            } label: {
+                                HStack(spacing: 3) { Text("切换身份"); Image(systemName: "chevron.down").font(.system(size: 8, weight: .bold)) }
+                                    .font(.system(size: 10, weight: .semibold)).foregroundStyle(.white)
+                                    .padding(.horizontal, 8).padding(.vertical, 4).background(.white.opacity(0.2), in: Capsule())
+                            }
+                        }
+                    }
+                    .font(.system(size: 12)).foregroundStyle(.white.opacity(0.8))
                     if DemoMode.isEnabled {
                         Text("演示模式").font(.system(size: 10, weight: .semibold))
                             .padding(.horizontal, 8).padding(.vertical, 3)
@@ -139,9 +157,9 @@ struct ProfileHubView: View {
     }
 
     private func studentPreview(_ student: APIStudent) -> some View {
-        NavigationLink { StudentDirectoryView() } label: {
+        NavigationLink { StudentProfileView(studentId: student.id) } label: {
             HStack(spacing: 12) {
-                MPLegacyImage(name: student.gender == "female" ? "girl" : "boy", size: 46)
+                MPLegacyImage(name: student.gender?.uppercased() == "FEMALE" ? "girl" : "boy", size: 46)
                 VStack(alignment: .leading, spacing: 4) {
                     Text(student.name).font(.system(size: 15, weight: .semibold)).foregroundStyle(MPColor.text)
                     Text("\(student.grade ?? "暂无年级") · \(student.classMembers?.count ?? 0) 个班级/课程")
@@ -211,5 +229,9 @@ struct ProfileHubView: View {
         classrooms = (await classroomRequest) ?? []
         students = (await studentRequest) ?? []
         points = await pointsRequest
+    }
+
+    private var availableRoles: [String] {
+        (session.user?.roles ?? []).map(\.role).filter { ["TEACHER", "GUARDIAN"].contains($0) }
     }
 }

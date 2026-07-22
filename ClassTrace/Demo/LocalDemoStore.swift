@@ -15,6 +15,16 @@ actor LocalDemoStore {
         let path = request.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
 
         if request.method == .get {
+            if path == "me" { return try envelope(profilePayload()) }
+            if path == "me/export" {
+                var export = state
+                export["profile"] = profilePayload()
+                export["exportedAt"] = Self.date(Date())
+                return try envelope(export)
+            }
+            if path == "entitlements" {
+                return try envelope(state["entitlements"] as? [String: Any] ?? ["active": false, "grants": []])
+            }
             if path == "home" { return try envelope(homePayload()) }
             if path == "business/overview" { return try envelope(businessPayload()) }
             if path == "points" {
@@ -80,10 +90,50 @@ actor LocalDemoStore {
 
         if request.method == .delete, let (key, id) = detailPath(path) {
             state[key] = items(key).filter { $0["id"] as? String != id }
+            if key == "students" {
+                var classes = items("classes")
+                for index in classes.indices {
+                    classes[index]["members"] = (classes[index]["members"] as? [[String: Any]] ?? []).filter { $0["studentId"] as? String != id }
+                }
+                state["classes"] = classes
+                state["plans"] = items("plans").filter { $0["studentId"] as? String != id }
+                state["mistakes"] = items("mistakes").filter { $0["studentId"] as? String != id }
+                state["hour-ledger"] = items("hour-ledger").filter { $0["studentId"] as? String != id }
+                state["guardian-invites"] = (state["guardian-invites"] as? [[String: Any]] ?? []).filter { $0["studentId"] as? String != id }
+            }
             try save(); return try envelope(NSNull())
         }
 
         let parts = path.split(separator: "/").map(String.init)
+        if request.method == .patch, path == "me" {
+            let input = try body(request)
+            var profile = profilePayload()
+            if let displayName = input["displayName"] as? String, !displayName.isEmpty { profile["displayName"] = displayName }
+            if let avatar = input["avatarUrl"], !(avatar is NSNull) { profile["avatarUrl"] = avatar }
+            try saveProfile(profile)
+            return try envelope(profile)
+        }
+        if request.method == .post, path == "me/roles" {
+            let input = try body(request); let role = input["role"] as? String ?? "GUARDIAN"
+            var profile = profilePayload(); var roles = profile["roles"] as? [[String: Any]] ?? []
+            if !roles.contains(where: { $0["role"] as? String == role }) { roles.append(["role": role]) }
+            profile["roles"] = roles; try saveProfile(profile); return try envelope(profile)
+        }
+        if request.method == .post, path == "me/phone" {
+            var profile = profilePayload(); var identities = profile["identities"] as? [[String: Any]] ?? []
+            identities.removeAll { $0["provider"] as? String == "PHONE" }
+            identities.append(["provider": "PHONE", "verifiedAt": Self.date(Date())])
+            profile["identities"] = identities; try saveProfile(profile); return try envelope(profile)
+        }
+        if request.method == .post, path == "activation-codes/redeem" {
+            let grant: [String: Any] = ["id": UUID().uuidString, "startsAt": Self.date(Date()), "endsAt": Self.date(Calendar.current.date(byAdding: .day, value: 30, to: Date()) ?? Date())]
+            state["entitlements"] = ["active": true, "grants": [grant]]; try save()
+            return try envelope(["id": UUID().uuidString, "productId": "activation-code", "status": "ACTIVE", "expiresAt": grant["endsAt"] ?? NSNull()])
+        }
+        if request.method == .delete, path == "me" {
+            try? LocalAccountStore.deletePersistedAccount(Self.currentAccount())
+            state = Self.seed(); try save(); return try envelope(NSNull())
+        }
         if request.method == .post, path == "notification-preferences" {
             let input=try body(request);var values=state["notification-preferences"] as? [[String:Any]] ?? [];let event=input["eventType"] as? String ?? "",channel=input["channel"] as? String ?? "IN_APP"
             if let index=values.firstIndex(where:{$0["eventType"] as? String==event && $0["channel"] as? String==channel}){values[index]["enabled"]=input["enabled"] ?? true;state["notification-preferences"]=values;try save();return try envelope(values[index])}
@@ -433,6 +483,41 @@ actor LocalDemoStore {
                 "orderCount": items("orders").count, "recordedRevenueCents": revenue]
     }
 
+    private func profilePayload() -> [String: Any] {
+        let account = Self.currentAccount()
+        if let cached = LocalProfileCache.load(account: account) {
+            return [
+                "id": cached.id,
+                "displayName": cached.displayName,
+                "avatarUrl": cached.avatarUrl?.absoluteString ?? NSNull(),
+                "status": cached.status,
+                "roles": (cached.roles ?? []).map { ["role": $0.role] },
+                "identities": (cached.identities ?? []).map { identity -> [String: Any] in
+                    ["provider": identity.provider, "verifiedAt": identity.verifiedAt.map(Self.date) ?? NSNull()]
+                }
+            ]
+        }
+        return [
+            "id": "local-\(account)",
+            "displayName": account == "demo" ? "演示教师" : account,
+            "status": "ACTIVE",
+            "roles": [["role": "TEACHER"], ["role": "GUARDIAN"]],
+            "identities": []
+        ]
+    }
+
+    private func saveProfile(_ profile: [String: Any]) throws {
+        let data = try JSONSerialization.data(withJSONObject: profile)
+        let decoder = JSONDecoder(); decoder.dateDecodingStrategy = .custom { decoder in
+            let text = try decoder.singleValueContainer().decode(String.self)
+            let fractional = ISO8601DateFormatter(); fractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+            if let date = fractional.date(from: text) { return date }
+            if let date = ISO8601DateFormatter().date(from: text) { return date }
+            throw DecodingError.dataCorruptedError(in: try decoder.singleValueContainer(), debugDescription: "Invalid date")
+        }
+        LocalProfileCache.save(try decoder.decode(APIUser.self, from: data), account: Self.currentAccount())
+    }
+
     private func plannedHours(_ input: [String: Any]) -> Double {
         guard let start = input["startsAt"] as? String, let end = input["endsAt"] as? String,
               let a = Self.parse(start), let b = Self.parse(end) else { return 1 }
@@ -507,6 +592,7 @@ actor LocalDemoStore {
                     ["id":"points-demo-3","delta":6,"reason":"学习计划打卡","createdAt":now]
                 ]
             ],
+            "entitlements":["active":false,"grants":[]],
             "feedback":[], "manual-courses":[], "orders":[], "hour-ledger":[], "guardian-invites":[],
             "notification-preferences":[["id":"pref-demo-1","eventType":"SESSION_REMINDER","channel":"APNS","enabled":true],["id":"pref-demo-2","eventType":"HOMEWORK","channel":"IN_APP","enabled":true]],
             "notifications":[["id":"notice-demo-1","type":"SESSION_REMINDER","title":"明天有课","body":"周末数学小班将在明天开课","resourceType":"SESSION","resourceId":"session-demo-1","createdAt":now]],

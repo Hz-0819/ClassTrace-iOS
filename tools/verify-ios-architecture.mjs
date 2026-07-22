@@ -63,6 +63,12 @@ for (const required of [
   "Features/Profile/ProfileHubView.swift",
   "Features/Profile/MiniProgramProfileHubView.swift",
   "Features/Profile/MiniProgramProfileSecondaryViews.swift",
+  "Features/Profile/MiniProgramAccountSettingsView.swift",
+  "Features/Profile/MiniProgramCommerceViews.swift",
+  "Features/Profile/MiniProgramFeedbackView.swift",
+  "Features/Profile/MiniProgramPointsView.swift",
+  "Features/Profile/MiniProgramVIPView.swift",
+  "Features/Profile/StudentProfileViews.swift",
   "Domain/Repositories/Repositories.swift"
 ]) assert(existsSync(join(root, "ClassTrace", required)), `required iOS feature is missing: ${required}`);
 
@@ -72,6 +78,11 @@ for (const [file, labels] of Object.entries({
   "ClassTrace/Features/Classroom/MiniProgramScheduleView.swift": ["周日程", "月日程", "已上", "待上", "收入统计"],
   "ClassTrace/Features/Classroom/MiniProgramClassroomDetailView.swift": ["班级信息", "班级资料", "收费信息"],
   "ClassTrace/Features/Profile/MiniProgramProfileHubView.swift": ["我的班级", "教学工作", "财务管理", "问题反馈"],
+  "ClassTrace/Features/Profile/StudentProfileViews.swift": ["课程与课时", "学习概览", "考勤统计", "监护关系", "课时流水"],
+  "ClassTrace/Features/Profile/MiniProgramPointsView.swift": ["总积分", "今日", "本周", "本月", "成长树苗", "打卡", "作业", "考勤"],
+  "ClassTrace/Features/Profile/MiniProgramFeedbackView.swift": ["选择图片", "选择文件", "再提一条", "历史反馈"],
+  "ClassTrace/Features/Profile/MiniProgramCommerceViews.swift": ["外部直接结算", "教师确认外部收款", "申请退款"],
+  "ClassTrace/Features/Profile/MiniProgramVIPView.swift": ["会员权益", "订阅方案", "恢复 App Store 购买"],
 })) {
   const source = text(file);
   for (const label of labels) assert(source.includes(label), `${file} is missing mini-program section: ${label}`);

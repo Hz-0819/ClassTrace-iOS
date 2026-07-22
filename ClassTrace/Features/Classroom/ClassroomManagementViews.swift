@@ -99,10 +99,11 @@ struct StudentEditorView: View {
     @State private var invite: GuardianInvitePayload?
     @State private var details: APIStudent?
     @State private var stats: APIAttendanceStats?
+    @State private var confirmDelete = false
 
     init(student: APIStudent, onSaved: @escaping () async -> Void) {
         self.student = student; self.onSaved = onSaved
-        _name = State(initialValue: student.name); _grade = State(initialValue: student.grade ?? ""); _gender = State(initialValue: student.gender ?? "")
+        _name = State(initialValue: student.name); _grade = State(initialValue: student.grade ?? ""); _gender = State(initialValue: student.gender?.lowercased() ?? "")
     }
     var body: some View {
         Form {
@@ -122,8 +123,9 @@ struct StudentEditorView: View {
                 }
             }
             if let error { Text(error).foregroundStyle(Color.ctDanger) }
-            Button("删除学生档案", role: .destructive) { Task { await remove() } }
+            Button("删除学生档案", role: .destructive) { confirmDelete = true }
         }.mpFormChrome().navigationTitle("学生档案").toolbar { Button("保存") { Task { await save() } }.disabled(name.isEmpty) }.task { await loadDetail() }
+            .alert("确认删除学生档案？", isPresented: $confirmDelete) { Button("取消", role: .cancel) {}; Button("删除", role: .destructive) { Task { await remove() } } } message: { Text("相关班级成员关系和学习记录可能受到影响，该操作不能撤销。") }
     }
     @MainActor private func save() async { do { _ = try await ClassTraceRepository(client: dependencies.client).updateStudent(student.id, name: name, grade: grade.nilIfEmpty, gender: gender.nilIfEmpty); await onSaved(); dismiss() } catch { self.error = error.localizedDescription } }
     @MainActor private func remove() async { do { try await ClassTraceRepository(client: dependencies.client).deleteStudent(student.id); await onSaved(); dismiss() } catch { self.error = error.localizedDescription } }

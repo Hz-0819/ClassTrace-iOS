@@ -60,6 +60,7 @@ struct ClassTraceRepository: Sendable {
     func feedback() async throws -> [APIFeedback] { try await get("feedback") }
     func manualCourses() async throws -> [APIManualCourse] { try await get("manual-courses") }
     func orders() async throws -> [APIOrder] { try await get("orders") }
+    func orderDetail(_ id: String) async throws -> APIOrder { try await get("orders/\(id)") }
     func entitlements() async throws -> APIEntitlements { try await get("entitlements") }
     func home() async throws -> APIHome { try await get("home") }
     func businessOverview(from: Date? = nil, to: Date? = nil) async throws -> APIBusinessOverview { let f = ISO8601DateFormatter(); var query: [URLQueryItem] = []; if let from { query.append(.init(name: "from", value: f.string(from: from))) }; if let to { query.append(.init(name: "to", value: f.string(from: to))) }; return try await get("business/overview", query: query) }

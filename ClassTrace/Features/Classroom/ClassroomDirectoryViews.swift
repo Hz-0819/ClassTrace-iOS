@@ -27,7 +27,7 @@ struct StudentDirectoryView: View {
                         .padding(.horizontal, 16)
                 } else {
                     ForEach(students) { item in
-                        NavigationLink { StudentEditorView(student: item) { await load() } } label: {
+                        NavigationLink { StudentProfileView(studentId: item.id) } label: {
                             MPCard {
                                 HStack(spacing: 13) {
                                     MPIconTile(image: item.gender?.uppercased() == "FEMALE" ? "girl" : "boy", color: MPColor.green, size: 50)
@@ -84,7 +84,7 @@ struct ChildrenDirectoryView: View {
                 .padding(.horizontal, 16).padding(.top, 12)
 
                 ForEach(students) { child in
-                    NavigationLink { StudentEditorView(student: child) { await load() } } label: {
+                    NavigationLink { StudentProfileView(studentId: child.id) } label: {
                         MPCard {
                             HStack(spacing: 13) {
                                 MPIconTile(image: child.gender?.uppercased() == "FEMALE" ? "girl" : "boy", color: MPColor.coral, size: 52)

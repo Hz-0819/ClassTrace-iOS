@@ -268,7 +268,7 @@ struct BusinessOverviewView: View {
     }
 }
 
-struct PointsCenterView: View {
+private struct LegacyPointsCenterView: View {
     @Environment(AppDependencies.self) private var dependencies
     @State private var points: APIPoints?
 
@@ -303,7 +303,7 @@ struct PointsCenterView: View {
     @MainActor private func load() async { points = try? await ClassTraceRepository(client: dependencies.client).points() }
 }
 
-struct FeedbackCenterView: View {
+private struct LegacyFeedbackCenterView: View {
     @Environment(AppDependencies.self) private var dependencies
     @State private var category = "功能异常"
     @State private var content = ""

@@ -1,6 +1,6 @@
 import SwiftUI
 
-struct AccountSettingsView: View {
+private struct LegacyAccountSettingsView: View {
     @Environment(AppSession.self) private var session
     @Environment(AppDependencies.self) private var dependencies
     @State private var displayName = ""; @State private var error: String?; @State private var confirmDelete = false
@@ -37,7 +37,7 @@ struct NotificationSettingsView: View {
     @MainActor private func set(_ event: String, _ channel: String, _ enabled: Bool) async { do { _ = try await ClassTraceRepository(client: dependencies.client).setNotificationPreference(eventType: event, channel: channel, enabled: enabled); await load() } catch { self.error = error.localizedDescription } }
 }
 
-struct CommerceCenterView: View {
+private struct LegacyCommerceCenterView: View {
     @Environment(AppDependencies.self) private var dependencies
     @State private var orders: [APIOrder] = []; @State private var classes: [APIClassroom] = []; @State private var students: [APIStudent] = []; @State private var showCreate = false; @State private var error: String?
     var body: some View { List(orders) { order in NavigationLink { OrderDetailView(order: order) { await load() } } label: { VStack(alignment: .leading) { HStack { Text(order.orderNumber).font(.headline); Spacer(); Text(order.status.localizedStatus) }; Text(order.student?.name ?? "学生"); Text((Double(order.totalAmountCents) / 100).formatted(.currency(code: "CNY"))).foregroundStyle(Color.ctTextSecondary) } } }.overlay { if orders.isEmpty { CTStateView(kind: .empty, title: "暂无账单", message: "家长可创建购课记录，教师确认外部收款。") } }.navigationTitle("账单与退款").toolbar { Button { showCreate = true } label: { Image(systemName: "plus") } }.sheet(isPresented: $showCreate) { CreateOrderView(classes: classes, students: students) { await load() } }.task { await load() } }

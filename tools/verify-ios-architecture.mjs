@@ -55,10 +55,27 @@ for (const required of [
   "Features/Dashboard/DashboardView.swift",
   "Features/Classroom/ClassroomHubView.swift",
   "Features/Classroom/ClassroomDetailView.swift",
+  "Features/Classroom/ClassroomDashboardView.swift",
+  "Features/Classroom/MiniProgramScheduleView.swift",
+  "Features/Classroom/MiniProgramClassroomDetailView.swift",
+  "Features/Classroom/MiniProgramSessionDetailView.swift",
   "Features/Learning/LearningHubView.swift",
   "Features/Profile/ProfileHubView.swift",
+  "Features/Profile/MiniProgramProfileHubView.swift",
+  "Features/Profile/MiniProgramProfileSecondaryViews.swift",
   "Domain/Repositories/Repositories.swift"
 ]) assert(existsSync(join(root, "ClassTrace", required)), `required iOS feature is missing: ${required}`);
+
+for (const [file, labels] of Object.entries({
+  "ClassTrace/Features/Dashboard/DashboardView.swift": ["近期提醒", "快捷入口", "近期排课"],
+  "ClassTrace/Features/Classroom/ClassroomDashboardView.swift": ["数据看板", "今日课程", "查看更多"],
+  "ClassTrace/Features/Classroom/MiniProgramScheduleView.swift": ["周日程", "月日程", "已上", "待上", "收入统计"],
+  "ClassTrace/Features/Classroom/MiniProgramClassroomDetailView.swift": ["班级信息", "班级资料", "收费信息"],
+  "ClassTrace/Features/Profile/MiniProgramProfileHubView.swift": ["我的班级", "教学工作", "财务管理", "问题反馈"],
+})) {
+  const source = text(file);
+  for (const label of labels) assert(source.includes(label), `${file} is missing mini-program section: ${label}`);
+}
 
 const parity = text("docs/architecture/full-parity-matrix.md");
 for (const domain of ["身份与用户", "学生与监护关系", "课程、班级与成员", "排课、上课与考勤", "课时账本", "教学内容", "学习管理", "通知、公告与反馈", "账单、支付与退款", "VIP 与系统能力"]) {

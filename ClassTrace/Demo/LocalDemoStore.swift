@@ -17,6 +17,13 @@ actor LocalDemoStore {
         if request.method == .get {
             if path == "home" { return try envelope(homePayload()) }
             if path == "business/overview" { return try envelope(businessPayload()) }
+            if path == "points" {
+                let fallback: [String: Any] = [
+                    "balance": 126,
+                    "entries": [["id": "points-demo-migrated", "delta": 126, "reason": "演示账号初始积分", "createdAt": Self.date(Date())]]
+                ]
+                return try envelope(state["points"] as? [String: Any] ?? fallback)
+            }
             if path == "sessions" { return try envelope(filteredSessions(request.query)) }
             if path == "hour-ledger" { return try envelope(filteredHourLedger(request.query)) }
             if path == "notification-preferences" { return try envelope(state["notification-preferences"] as? [[String: Any]] ?? []) }
@@ -492,6 +499,14 @@ actor LocalDemoStore {
             "materials":[],
             "plans":[["id":"plan-demo-1","studentId":"student-demo-1","title":"每日口算 15 分钟","description":"连续坚持四周","status":"ACTIVE","startsAt":now,"checkIns":[]]],
             "mistakes":[["id":"mistake-demo-1","studentId":"student-demo-1","subject":"数学","title":"工程问题","content":"两人合作完成工程需要多久？","answer":"6 天","analysis":"先求两人的工作效率之和","tags":["应用题"],"createdAt":now]],
+            "points":[
+                "balance":126,
+                "entries":[
+                    ["id":"points-demo-1","delta":20,"reason":"完成课堂学习","createdAt":now],
+                    ["id":"points-demo-2","delta":10,"reason":"按时提交作业","createdAt":now],
+                    ["id":"points-demo-3","delta":6,"reason":"学习计划打卡","createdAt":now]
+                ]
+            ],
             "feedback":[], "manual-courses":[], "orders":[], "hour-ledger":[], "guardian-invites":[],
             "notification-preferences":[["id":"pref-demo-1","eventType":"SESSION_REMINDER","channel":"APNS","enabled":true],["id":"pref-demo-2","eventType":"HOMEWORK","channel":"IN_APP","enabled":true]],
             "notifications":[["id":"notice-demo-1","type":"SESSION_REMINDER","title":"明天有课","body":"周末数学小班将在明天开课","resourceType":"SESSION","resourceId":"session-demo-1","createdAt":now]],

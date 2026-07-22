@@ -7,7 +7,7 @@ struct MainTabView: View {
         ZStack(alignment: .bottom) {
             Group {
                 switch selection {
-                case 1: NavigationStack { ClassroomHubView() }
+                case 1: NavigationStack { ClassroomDashboardView() }
                 case 2: NavigationStack { ProfileHubView() }
                 default: NavigationStack { DashboardView(selectedTab: $selection) }
                 }
@@ -16,7 +16,7 @@ struct MainTabView: View {
 
             HStack {
                 tab(0, "首页", "home", "home-blue")
-                tab(1, "课程", "class", "class-blue")
+                tab(1, "班级", "class", "class-blue")
                 tab(2, "我的", "user", "user-blue")
             }
             .frame(height: 64)

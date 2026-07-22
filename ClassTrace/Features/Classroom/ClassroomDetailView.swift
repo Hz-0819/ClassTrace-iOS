@@ -1,6 +1,6 @@
 import SwiftUI
 
-struct ClassroomDetailView: View {
+private struct LegacyClassroomDetailView: View {
     @Environment(AppDependencies.self) private var dependencies
     let classId: String
     @State private var classroom: APIClassroom?
@@ -62,7 +62,7 @@ struct ClassroomDetailView: View {
     @MainActor private func load() async { do { let client = dependencies.client; async let c = ClassTraceRepository(client: client).classDetail(classId); async let s = ClassTraceRepository(client: client).students(); (classroom, students) = try await (c, s); errorMessage = nil } catch { errorMessage = error.localizedDescription } }
 }
 
-struct SessionDetailView: View {
+private struct LegacySessionDetailView: View {
     @Environment(AppDependencies.self) private var dependencies
     let sessionId: String
     @State private var session: APISession?

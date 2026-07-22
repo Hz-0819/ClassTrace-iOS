@@ -1,6 +1,6 @@
 import SwiftUI
 
-struct ProfileHubView: View {
+private struct LegacyProfileHubView: View {
     @Environment(AppSession.self) private var session
     @Environment(AppDependencies.self) private var dependencies
     @State private var classes: [APIClassroom] = []
@@ -113,7 +113,7 @@ struct ProfileHubView: View {
     }
 }
 
-struct NotificationCenterView: View {
+private struct LegacyNotificationCenterView: View {
     @Environment(AppDependencies.self) private var dependencies; @State private var items: [APINotification] = []; @State private var error: String?
     var body: some View { List(items) { item in Button { Task { await read(item) } } label: { HStack(alignment: .top) { Circle().fill(item.readAt == nil ? Color.ctBrand : Color.clear).frame(width: 8, height: 8).padding(.top, 6); VStack(alignment: .leading) { Text(item.title).font(.headline); Text(item.body).foregroundStyle(Color.ctTextSecondary); Text(item.createdAt.formatted()).font(.caption).foregroundStyle(Color.ctTextSecondary) } } }.buttonStyle(.plain) }.overlay { if items.isEmpty && error == nil { CTStateView(kind: .empty, title: "暂无通知", message: "课前提醒和教学动态会显示在这里") } }.navigationTitle("消息通知").toolbar { Button("全部已读") { Task { _ = try? await ClassTraceRepository(client: dependencies.client).markAllNotificationsRead(); await load() } } }.task { await load() } }
     @MainActor private func load() async { do { items = try await ClassTraceRepository(client: dependencies.client).notifications() } catch { self.error = error.localizedDescription } }
@@ -131,13 +131,13 @@ struct VIPCenterView: View {
     @MainActor private func reload() async { entitlements = try? await ClassTraceRepository(client: dependencies.client).entitlements() }
 }
 
-struct BusinessOverviewView: View {
+private struct LegacyBusinessOverviewView: View {
     @Environment(AppDependencies.self) private var dependencies; @State private var overview: APIBusinessOverview?; @State private var from = Calendar.current.date(byAdding: .month, value: -1, to: Date()) ?? Date(); @State private var to = Date()
     var body: some View { List { Section("统计范围") { DatePicker("开始", selection: $from, displayedComponents: .date); DatePicker("结束", selection: $to, displayedComponents: .date); Button("刷新") { Task { await load() } } }; if let overview { Section("经营数据") { LabeledContent("进行中班级", value: "\(overview.activeClassCount)"); LabeledContent("完成课节", value: "\(overview.completedSessionCount)"); LabeledContent("累计课时", value: overview.consumedHours.formatted()); LabeledContent("订单数", value: "\(overview.orderCount)"); LabeledContent("记录收入", value: overview.recordedRevenueCents.formattedCurrency) } } }.navigationTitle("经营概览").task { await load() } }
     @MainActor private func load() async { overview = try? await ClassTraceRepository(client: dependencies.client).businessOverview(from: from, to: Calendar.current.date(byAdding: .day, value: 1, to: to)) }
 }
 
-struct FeedbackCenterView: View {
+private struct LegacyFeedbackCenterView: View {
     @Environment(AppDependencies.self) private var dependencies; @State private var items: [APIFeedback] = []; @State private var showNew = false
     var body: some View { List(items) { item in VStack(alignment: .leading) { HStack { Text(item.category).font(.headline); Spacer(); Text(item.status.localizedStatus) }; Text(item.content); if let reply = item.reply { Text("回复：\(reply)").foregroundStyle(Color.ctBrand) } } }.navigationTitle("意见反馈").toolbar { Button { showNew = true } label: { Image(systemName: "square.and.pencil") } }.sheet(isPresented: $showNew) { NewFeedbackSheet { await load() } }.task { await load() } }
     @MainActor private func load() async { items = (try? await ClassTraceRepository(client: dependencies.client).feedback()) ?? [] }

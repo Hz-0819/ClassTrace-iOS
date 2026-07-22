@@ -175,7 +175,7 @@ private struct MPNumberField: View { let label: String; @Binding var value: Doub
 private struct MPChoiceRow: View { let label: String; let options: [(String,String)]; @Binding var selection: String; var body: some View { VStack(alignment:.leading,spacing:8){ Text(label).mpFormLabel(); HStack(spacing:10){ ForEach(options.indices,id:\.self){ index in Button{selection=options[index].1}label:{Text(options[index].0).font(.system(size:14,weight:.medium)).foregroundStyle(selection==options[index].1 ? MPColor.blue:MPColor.text).frame(maxWidth:.infinity,minHeight:42).background(selection==options[index].1 ? MPColor.blue.opacity(0.12):MPColor.page,in:RoundedRectangle(cornerRadius:9)).overlay(RoundedRectangle(cornerRadius:9).stroke(selection==options[index].1 ? MPColor.blue:.clear))}.buttonStyle(.plain) } } } } }
 private extension Text { func mpFormLabel() -> some View { font(.system(size:14,weight:.medium)).foregroundStyle(MPColor.text) } }
 
-struct ScheduleCalendarView: View {
+private struct LegacyScheduleCalendarView: View {
     @Environment(AppDependencies.self) private var dependencies
     @State private var mode = 0
     @State private var anchor = Date()

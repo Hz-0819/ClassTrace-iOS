@@ -18,6 +18,7 @@ final class DemoModeTests: XCTestCase {
         let materials: [APIMaterial] = try await client.send(HTTPRequest(method: .get, path: "materials"))
         let plans: [APIStudyPlan] = try await client.send(HTTPRequest(method: .get, path: "plans"))
         let mistakes: [APIMistake] = try await client.send(HTTPRequest(method: .get, path: "mistakes"))
+        let points: APIPoints = try await client.send(HTTPRequest(method: .get, path: "points"))
         let orders: [APIOrder] = try await client.send(HTTPRequest(method: .get, path: "orders"))
 
         XCTAssertEqual(user.displayName, "演示教师")
@@ -30,6 +31,8 @@ final class DemoModeTests: XCTestCase {
         XCTAssertNotNil(materials)
         XCTAssertFalse(plans.isEmpty)
         XCTAssertFalse(mistakes.isEmpty)
+        XCTAssertGreaterThan(points.balance, 0)
+        XCTAssertFalse(points.entries.isEmpty)
         XCTAssertNotNil(orders)
     }
 

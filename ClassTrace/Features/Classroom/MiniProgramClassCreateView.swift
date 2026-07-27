@@ -279,14 +279,14 @@ struct MiniProgramClassCreateView: View {
         if scheduleMode == "weekly" {
             ForEach(weeklySlots) { slot in
                 scheduleRow(
-                    title: slot.weekdays.sorted().map { Self.weekdayNames[$0 - 1] }.joined(separator: "、"),
+                    slot.weekdays.sorted().map { Self.weekdayNames[$0 - 1] }.joined(separator: "、"),
                     detail: "\(time(slot.startTime))-\(time(slot.endTime))"
                 ) { weeklySlots.removeAll { $0.id == slot.id } }
             }
         } else {
             ForEach(dateSlots) { slot in
                 scheduleRow(
-                    title: slot.date.formatted(.dateTime.year().month().day().weekday(.wide)),
+                    slot.date.formatted(.dateTime.year().month().day().weekday(.wide)),
                     detail: "\(time(slot.startTime))-\(time(slot.endTime))"
                 ) { dateSlots.removeAll { $0.id == slot.id } }
             }

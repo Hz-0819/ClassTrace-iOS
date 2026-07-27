@@ -53,7 +53,7 @@ struct ClassroomDashboardView: View {
         .sheet(item: $sheet) { item in
             switch item {
             case .createClass:
-                ClassEditorView(courses: courses) { await load() }
+                MiniProgramClassCreateView(courses: courses) { await load() }
             case .joinClass:
                 ParentCourseAddView(students: students) { await load() }
             }

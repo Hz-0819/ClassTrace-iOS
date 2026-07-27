@@ -173,4 +173,90 @@ final class DemoModeTests: XCTestCase {
         let stored = try await repository.orderDetail(order.id)
         XCTAssertEqual(stored.refunds?.first(where: { $0.id == refund.id })?.status, "REFUNDED")
     }
+
+    func testMiniProgramParityFormsPersistEveryExtendedField() async throws {
+        let repository = ClassTraceRepository(client: client)
+        let suffix = String(UUID().uuidString.prefix(6))
+        let classroom = try await repository.createClass(
+            name: "完整表单班级-\(suffix)",
+            type: "SMALL_GROUP",
+            billingMode: "PREPAID",
+            location: "海风教室",
+            price: 168,
+            totalHours: 24,
+            lessonDurationMinutes: 90,
+            startDate: Date(),
+            color: "#7BA3C0"
+        )
+        let student = try await repository.createStudent(
+            name: "完整档案学生-\(suffix)",
+            grade: "六年级",
+            linkAsGuardian: false,
+            age: 12,
+            address: "青岛市市南区",
+            remark: "周末优先排课"
+        )
+        _ = try await repository.addMember(
+            classId: classroom.id,
+            studentId: student.id,
+            initialHours: 24,
+            pricePerHour: 168
+        )
+
+        let attachment = APIHomeworkAttachment(
+            id: UUID().uuidString,
+            name: "练习题.pdf",
+            objectKey: "local/parity-\(suffix).pdf",
+            mimeType: "application/pdf",
+            sizeBytes: 2_048
+        )
+        let homework = try await repository.createHomework(
+            classId: classroom.id,
+            title: "指定学生作业-\(suffix)",
+            content: "完成第一至第三题",
+            dueAt: Date().addingTimeInterval(86_400),
+            publish: true,
+            audienceType: "selected",
+            targetStudentIds: [student.id],
+            attachments: [attachment]
+        )
+        let plan = try await repository.createPlan(
+            studentId: student.id,
+            title: "每周复习计划-\(suffix)",
+            description: "每周复习错题",
+            subject: "数学",
+            category: "weekly",
+            time: "19:30",
+            deadline: "2026-12-31",
+            reminder: true,
+            weekDays: [2, 4, 6],
+            remark: "完成后打卡"
+        )
+        let mistake = try await repository.createMistake(
+            studentId: student.id,
+            subject: "数学",
+            title: "分数计算-\(suffix)",
+            content: "计算题",
+            answer: "3/4",
+            analysis: "先通分",
+            wrongAnswer: "2/3",
+            tags: ["分数", "通分"]
+        )
+
+        let storedStudent = try await repository.studentDetail(student.id)
+        let storedClass = try await repository.classDetail(classroom.id)
+        XCTAssertEqual(storedStudent.age, 12)
+        XCTAssertEqual(storedStudent.address, "青岛市市南区")
+        XCTAssertEqual(storedStudent.remark, "周末优先排课")
+        XCTAssertTrue(storedClass.members?.contains(where: { $0.studentId == student.id && $0.remainingHours.doubleValue == 24 }) == true)
+        XCTAssertEqual(homework.audienceType, "selected")
+        XCTAssertEqual(homework.targetStudentIds, [student.id])
+        XCTAssertEqual(homework.attachments?.first?.name, "练习题.pdf")
+        XCTAssertEqual(plan.subject, "数学")
+        XCTAssertEqual(plan.category, "weekly")
+        XCTAssertEqual(plan.weekDays, [2, 4, 6])
+        XCTAssertEqual(plan.reminder, true)
+        XCTAssertEqual(mistake.wrongAnswer, "2/3")
+        XCTAssertEqual(mistake.tags, ["分数", "通分"])
+    }
 }

@@ -347,7 +347,7 @@ actor LocalDemoStore {
             if let classId = input["classId"] as? String, let classroom = items("classes").first(where: { $0["id"] as? String == classId }) { item["classroom"] = classSummary(classroom) }
         case "materials": item["createdAt"] = now
         case "plans": item["status"] = item["status"] ?? "ACTIVE"; item["checkIns"] = []
-        case "mistakes": item["tags"] = []; item["createdAt"] = now
+        case "mistakes": item["tags"] = item["tags"] ?? []; item["createdAt"] = now
         case "feedback": item["status"] = "PENDING"; item["createdAt"] = now
         case "manual-courses": break
         case "orders":

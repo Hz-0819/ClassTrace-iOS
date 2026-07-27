@@ -67,8 +67,8 @@ struct ClassTraceRepository: Sendable {
     func classDetail(_ id: String) async throws -> APIClassroom { try await get("classes/\(id)") }
     func sessionDetail(_ id: String) async throws -> APISession { try await get("sessions/\(id)") }
 
-    func createStudent(name: String, grade: String?, linkAsGuardian: Bool) async throws -> APIStudent {
-        try await post("students", CreateStudentRequest(name: name, grade: grade, linkAsGuardian: linkAsGuardian))
+    func createStudent(name: String, grade: String?, linkAsGuardian: Bool, age: Int? = nil, address: String? = nil, remark: String? = nil) async throws -> APIStudent {
+        try await post("students", CreateStudentRequest(name: name, grade: grade, age: age, address: address, remark: remark, linkAsGuardian: linkAsGuardian))
     }
     func createClass(name: String, type: String, billingMode: String, location: String?, courseId: String? = nil, schedule: APIClassSchedule? = nil, price: Double? = nil, totalHours: Double? = nil, lessonDurationMinutes: Int? = nil, startDate: Date? = nil, color: String? = nil, teacherName: String? = nil) async throws -> APIClassroom {
         let formatter = ISO8601DateFormatter()
@@ -122,17 +122,24 @@ struct ClassTraceRepository: Sendable {
     func rescheduleSession(_ id: String, startsAt: Date, endsAt: Date) async throws -> APISession { let f = ISO8601DateFormatter(); return try await patch("sessions/\(id)/reschedule", TimeMutation(startsAt: f.string(from: startsAt), endsAt: f.string(from: endsAt))) }
     func cancelSession(_ id: String, reason: String?) async throws -> APISession { try await post("sessions/\(id)/cancel", ReasonMutation(reason: reason)) }
     func saveSessionFeedback(_ id: String, summary: String?, performance: String?, homeworkNote: String?) async throws -> APISessionFeedback { try await patch("sessions/\(id)/feedback", SessionFeedbackMutation(summary: summary, performance: performance, homeworkNote: homeworkNote)) }
-    func createHomework(classId: String, title: String, content: String, dueAt: Date?, publish: Bool) async throws -> APIHomework { let f = ISO8601DateFormatter(); return try await post("homework", HomeworkMutation(classId: classId, title: title, content: content, dueAt: dueAt.map { f.string(from: $0) }, status: publish ? "PUBLISHED" : "DRAFT")) }
+    func createHomework(classId: String, title: String, content: String, dueAt: Date?, publish: Bool, audienceType: String = "all", targetStudentIds: [String] = [], attachments: [APIHomeworkAttachment] = []) async throws -> APIHomework {
+        let f = ISO8601DateFormatter()
+        return try await post("homework", HomeworkCreateRequest(classId: classId, title: title, content: content, dueAt: dueAt.map { f.string(from: $0) }, status: publish ? "PUBLISHED" : "DRAFT", audienceType: audienceType, targetStudentIds: targetStudentIds, attachments: attachments))
+    }
     func updateHomework(_ id: String, title: String?, content: String?, status: String?) async throws -> APIHomework { try await patch("homework/\(id)", HomeworkUpdate(title: title, content: content, status: status)) }
     func deleteHomework(_ id: String) async throws { try await delete("homework/\(id)") }
     func submitHomework(_ id: String, studentId: String, content: String?) async throws -> APIHomeworkSubmission { try await post("homework/\(id)/submissions", HomeworkSubmit(studentId: studentId, content: content)) }
     func reviewSubmission(_ id: String, status: String, score: Double?, comment: String?) async throws -> APIHomeworkSubmission { try await patch("homework-submissions/\(id)/review", HomeworkReview(status: status, score: score, comment: comment)) }
     func createMaterial(classId: String?, name: String, objectKey: String, mimeType: String, sizeBytes: Int, category: String?) async throws -> APIMaterial { try await post("materials", MaterialCreate(classId: classId, name: name, objectKey: objectKey, mimeType: mimeType, sizeBytes: sizeBytes, category: category)) }
     func deleteMaterial(_ id: String) async throws { try await delete("materials/\(id)") }
-    func createPlan(studentId: String?, title: String, description: String?) async throws -> APIStudyPlan { try await post("plans", PlanMutation(studentId: studentId, title: title, description: description, status: nil)) }
+    func createPlan(studentId: String?, title: String, description: String?, subject: String? = nil, category: String? = nil, time: String? = nil, deadline: String? = nil, reminder: Bool = false, weekDays: [Int] = [], remark: String? = nil) async throws -> APIStudyPlan {
+        try await post("plans", PlanCreateRequest(studentId: studentId, title: title, description: description, status: "ACTIVE", subject: subject, category: category, time: time, deadline: deadline, reminder: reminder, weekDays: weekDays, remark: remark))
+    }
     func updatePlan(_ id: String, title: String?, description: String?, status: String?) async throws -> APIStudyPlan { try await patch("plans/\(id)", PlanMutation(studentId: nil, title: title, description: description, status: status)) }
     func deletePlan(_ id: String) async throws { try await delete("plans/\(id)") }
-    func createMistake(studentId: String?, subject: String?, title: String, content: String?, answer: String?, analysis: String?) async throws -> APIMistake { try await post("mistakes", MistakeMutation(studentId: studentId, subject: subject, title: title, content: content, answer: answer, analysis: analysis)) }
+    func createMistake(studentId: String?, subject: String?, title: String, content: String?, answer: String?, analysis: String?, wrongAnswer: String? = nil, tags: [String] = []) async throws -> APIMistake {
+        try await post("mistakes", MistakeCreateRequest(studentId: studentId, subject: subject, title: title, content: content, wrongAnswer: wrongAnswer, answer: answer, analysis: analysis, tags: tags))
+    }
     func updateMistake(_ id: String, subject: String?, title: String, content: String?, answer: String?, analysis: String?) async throws -> APIMistake { try await patch("mistakes/\(id)", MistakeMutation(studentId: nil, subject: subject, title: title, content: content, answer: answer, analysis: analysis)) }
     func markMistakeMastered(_ id: String) async throws -> APIMistake { try await post("mistakes/\(id)/mastered", EmptyRequest()) }
     func deleteMistake(_ id: String) async throws { try await delete("mistakes/\(id)") }
@@ -164,7 +171,7 @@ private struct PhoneCodeRequest: Encodable { let phone: String; let purpose: Str
 private struct PhoneVerifyRequest: Encodable { let phone: String; let code: String; let purpose: String; let displayName: String?; let role: String }
 private struct RefreshTokenRequest: Encodable { let refreshToken: String }
 private struct AppleAuthRequest: Encodable { let identityToken: String; let nonce: String; let authorizationCode: String?; let fullName: String?; let role: String }
-private struct CreateStudentRequest: Encodable { let name: String; let grade: String?; let linkAsGuardian: Bool }
+private struct CreateStudentRequest: Encodable { let name: String; let grade: String?; let age: Int?; let address: String?; let remark: String?; let linkAsGuardian: Bool }
 private struct CreateClassRequest: Encodable { let name: String; let classType: String; let billingMode: String; let location: String?; let courseId: String?; let schedule: APIClassSchedule?; let priceSettings: APIPriceSettings?; let hourSettings: APIHourSettings?; let lessonDurationMinutes: Int?; let startDate: String?; let color: String?; let maxStudents: Int?; let teacherName: String? }
 private struct JoinClassRequest: Encodable { let inviteCode: String; let studentId: String }
 private struct CreateSessionRequest: Encodable { let classId: String; let startsAt: String; let endsAt: String }
@@ -188,12 +195,15 @@ private struct TimeMutation: Encodable { let startsAt: String; let endsAt: Strin
 private struct ReasonMutation: Encodable { let reason: String? }
 private struct SessionFeedbackMutation: Encodable { let summary: String?; let performance: String?; let homeworkNote: String? }
 private struct HomeworkMutation: Encodable { let classId: String; let title: String; let content: String; let dueAt: String?; let status: String }
+private struct HomeworkCreateRequest: Encodable { let classId: String; let title: String; let content: String; let dueAt: String?; let status: String; let audienceType: String; let targetStudentIds: [String]; let attachments: [APIHomeworkAttachment] }
 private struct HomeworkUpdate: Encodable { let title: String?; let content: String?; let status: String? }
 private struct HomeworkSubmit: Encodable { let studentId: String; let content: String? }
 private struct HomeworkReview: Encodable { let status: String; let score: Double?; let comment: String? }
 private struct MaterialCreate: Encodable { let classId: String?; let name: String; let objectKey: String; let mimeType: String; let sizeBytes: Int; let category: String? }
 private struct PlanMutation: Encodable { let studentId: String?; let title: String?; let description: String?; let status: String? }
 private struct MistakeMutation: Encodable { let studentId: String?; let subject: String?; let title: String; let content: String?; let answer: String?; let analysis: String? }
+private struct PlanCreateRequest: Encodable { let studentId: String?; let title: String; let description: String?; let status: String; let subject: String?; let category: String?; let time: String?; let deadline: String?; let reminder: Bool; let weekDays: [Int]; let remark: String? }
+private struct MistakeCreateRequest: Encodable { let studentId: String?; let subject: String?; let title: String; let content: String?; let wrongAnswer: String?; let answer: String?; let analysis: String?; let tags: [String] }
 private struct PreferenceMutation: Encodable { let eventType: String; let channel: String; let enabled: Bool }
 private struct OrderCreate: Encodable { let studentId: String; let classId: String; let totalAmountCents: Int; let purchasedHours: Double; let settlementPolicy: String }
 private struct PaymentCreate: Encodable { let provider: String; let providerTransactionId: String; let amountCents: Int }

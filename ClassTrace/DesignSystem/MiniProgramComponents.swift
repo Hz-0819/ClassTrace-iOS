@@ -93,37 +93,57 @@ struct MPPageHeader<Trailing: View>: View {
 
     var body: some View {
         ZStack(alignment: .bottom) {
-            MPColor.blue
-            Circle().fill(.white.opacity(0.10)).frame(width: 120, height: 120).offset(x: 145, y: -75)
-            Circle().fill(.white.opacity(0.08)).frame(width: 72, height: 72).offset(x: -170, y: -15)
-            Circle().fill(.white.opacity(0.07)).frame(width: 44, height: 44).offset(x: 125, y: 48)
-            VStack(spacing: 26) {
+            LinearGradient(
+                colors: [
+                    MPColor.blue,
+                    Color(red: 138 / 255, green: 176 / 255, blue: 201 / 255),
+                    Color(red: 155 / 255, green: 184 / 255, blue: 204 / 255)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            Circle().fill(.white.opacity(0.08)).frame(width: 160, height: 160).offset(x: 150, y: -40)
+            Circle().stroke(.white.opacity(0.15), lineWidth: 1).frame(width: 80, height: 80).offset(x: 85, y: -20)
+            Circle().stroke(.white.opacity(0.10), lineWidth: 1).frame(width: 50, height: 50).offset(x: -205, y: 38)
+            Circle().fill(.white.opacity(0.30)).frame(width: 5, height: 5).offset(x: -135, y: -32)
+            Circle().fill(.white.opacity(0.25)).frame(width: 3, height: 3).offset(x: 150, y: 24)
+            VStack(spacing: 20) {
                 HStack {
                     HStack(spacing: 10) {
                         ZStack {
-                            Circle().fill(.white.opacity(0.22)).frame(width: 38, height: 38)
-                            MPLegacyImage(name: "icon", size: 28)
+                            RoundedRectangle(cornerRadius: 8).fill(.white.opacity(0.95)).frame(width: 28, height: 28)
+                            MPLegacyImage(name: "icon", size: 18)
                         }
-                        Text("课迹 ClassTrace").font(.system(size: 18, weight: .semibold)).foregroundStyle(.white)
+                        Text("课迹 ClassTrace").font(.system(size: 14, weight: .semibold)).foregroundStyle(.white)
                     }
                     Spacer()
                     trailing
                 }
                 VStack(alignment: .leading, spacing: 6) {
-                    Text(greeting).font(.system(size: 15)).foregroundStyle(.white.opacity(0.78))
+                    Text(greeting).font(.system(size: 12)).foregroundStyle(.white.opacity(0.80))
                     HStack(spacing: 8) {
-                        Text(name).font(.system(size: 26, weight: .bold)).foregroundStyle(.white)
+                        Text(name).font(.system(size: 22, weight: .bold)).foregroundStyle(.white)
                         if DemoMode.isEnabled {
-                            Text("演示模式").font(.system(size: 11, weight: .semibold)).foregroundStyle(.white)
-                                .padding(.horizontal, 8).padding(.vertical, 4).background(.white.opacity(0.20), in: Capsule())
+                            Text("演示模式").font(.system(size: 10, weight: .semibold)).foregroundStyle(.white)
+                                .padding(.horizontal, 8).padding(.vertical, 3).background(.white.opacity(0.20), in: Capsule())
                         }
                     }
                 }.frame(maxWidth: .infinity, alignment: .leading)
             }
-            .padding(.horizontal, 20).padding(.top, 14).padding(.bottom, 28)
+            .padding(.horizontal, 16).padding(.top, 16).padding(.bottom, 34)
+
+            if let image = LegacyImageLoader.image(named: "wave") {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 30)
+                    .clipped()
+                    .allowsHitTesting(false)
+            }
         }
-        .frame(height: 190)
-        .clipShape(UnevenRoundedRectangle(bottomLeadingRadius: 28, bottomTrailingRadius: 28))
+        .frame(height: 160)
+        .clipped()
     }
 }
 

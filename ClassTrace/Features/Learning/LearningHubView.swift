@@ -31,7 +31,7 @@ struct LearningHubView: View {
         }
         .background(MPColor.page).navigationTitle("教学与学习").navigationBarTitleDisplayMode(.inline)
         .toolbar { ToolbarItem(placement: .topBarTrailing) { Menu { Button("新建作业") { sheet = .homework }; Button("上传资料") { sheet = .material }; Button("新建计划") { sheet = .plan }; Button("录入错题") { sheet = .mistake } } label: { Label("\(points?.balance ?? 0)", systemImage: "plus.circle.fill") } } }
-        .sheet(item: $sheet) { item in switch item { case .homework: NewLearningItemView(kind: .homework, classes: classes, students: students) { await load() }; case .material: MaterialUploadView(classes: classes) { await load() }; case .plan: NewLearningItemView(kind: .plan, classes: classes, students: students) { await load() }; case .mistake: NewLearningItemView(kind: .mistake, classes: classes, students: students) { await load() } } }
+        .sheet(item: $sheet) { item in switch item { case .homework: MiniProgramLearningCreateView(kind: .homework, classes: classes, students: students) { await load() }; case .material: MaterialUploadView(classes: classes) { await load() }; case .plan: MiniProgramLearningCreateView(kind: .plan, classes: classes, students: students) { await load() }; case .mistake: MiniProgramLearningCreateView(kind: .mistake, classes: classes, students: students) { await load() } } }
         .refreshable { await load() }.task { if homework.isEmpty && plans.isEmpty { await load() } }
     }
     @ViewBuilder private var list: some View {

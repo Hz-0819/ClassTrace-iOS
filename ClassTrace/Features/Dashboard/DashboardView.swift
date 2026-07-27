@@ -166,48 +166,92 @@ struct DashboardView: View {
     }
 
     private func recentSchedule(_ value: APIHome) -> some View {
-        let sessions = value.sessions.sorted { $0.startsAt < $1.startsAt }
+        let activeClasses = classes.filter { $0.status == "ACTIVE" }
         return VStack(spacing: 12) {
             MPSectionHeader(title: "近期排课", action: "查看全部") { showSchedule = true }
-            if sessions.isEmpty {
+            if activeClasses.isEmpty {
                 MPCard { MPEmptyView(image: "class", title: "暂无近期排课", detail: "创建班级并完成排课后会显示在这里") }
             } else {
-                ForEach(sessions.prefix(4)) { item in
-                    NavigationLink { SessionDetailView(sessionId: item.id) } label: {
-                        MPCard {
-                            HStack(spacing: 14) {
-                                VStack(spacing: 2) {
-                                    Text(item.startsAt.formatted(.dateTime.day()))
-                                        .font(.system(size: 22, weight: .bold)).foregroundStyle(MPColor.blue)
-                                    Text(item.startsAt.formatted(.dateTime.month(.abbreviated)))
-                                        .font(.system(size: 10)).foregroundStyle(MPColor.secondary)
-                                }
-                                .frame(width: 48, height: 52)
-                                .background(MPColor.blue.opacity(0.11), in: RoundedRectangle(cornerRadius: 12))
-
-                                VStack(alignment: .leading, spacing: 6) {
-                                    Text(item.classroom?.name ?? classroom(item.classId)?.name ?? "课程")
-                                        .font(.system(size: 16, weight: .semibold)).foregroundStyle(MPColor.text)
-                                    Text("\(item.startsAt.formatted(date: .omitted, time: .shortened)) - \(item.endsAt.formatted(date: .omitted, time: .shortened))")
-                                        .font(.system(size: 12)).foregroundStyle(MPColor.secondary)
-                                    if let location = classroom(item.classId)?.location, !location.isEmpty {
-                                        Text(location).font(.system(size: 11)).foregroundStyle(MPColor.secondary)
-                                    }
-                                }
-                                Spacer()
-                                Text(item.status == "COMPLETED" ? "已确认" : "待确认")
-                                    .font(.system(size: 10, weight: .semibold))
-                                    .foregroundStyle(item.status == "COMPLETED" ? MPColor.green : MPColor.gold)
-                                    .padding(.horizontal, 8).padding(.vertical, 5)
-                                    .background((item.status == "COMPLETED" ? MPColor.green : MPColor.gold).opacity(0.13), in: Capsule())
-                            }
-                        }
-                    }
-                    .buttonStyle(.plain)
-                }
+                ForEach(activeClasses.prefix(4)) { classroom in recentClassCard(classroom, sessions: value.sessions) }
             }
         }
         .padding(.horizontal, 16)
+    }
+
+    private func recentClassCard(_ classroom: APIClassroom, sessions: [APISession]) -> some View {
+        let values = sessions.filter { $0.classId == classroom.id }
+        let completed = values.filter { $0.status == "COMPLETED" }.reduce(0) { $0 + $1.plannedHours.doubleValue }
+        let total = classroom.members?.reduce(0) { $0 + $1.totalHours.doubleValue } ?? 0
+        let progress = total > 0 ? min(completed / total, 1) : 0
+        let tint = classColor(classroom)
+        let next = values
+            .filter { $0.startsAt >= Date() && $0.status != "CANCELLED" }
+            .min { $0.startsAt < $1.startsAt }
+
+        return NavigationLink { ClassroomDetailView(classId: classroom.id) } label: {
+            ZStack(alignment: .bottomLeading) {
+                Color.white
+                Circle().fill(tint.opacity(0.10)).frame(width: 100, height: 100).offset(x: -45, y: 55)
+                VStack(spacing: 0) {
+                    HStack(spacing: 12) {
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 12).fill(tint)
+                            MPLegacyImage(name: "book", size: 24)
+                        }.frame(width: 48, height: 48).shadow(color: .black.opacity(0.10), radius: 4, y: 2)
+                        VStack(alignment: .leading, spacing: 5) {
+                            HStack {
+                                Text(classroom.name).font(.system(size: 15, weight: .semibold)).foregroundStyle(MPColor.text)
+                                Spacer()
+                                MPLegacyImage(name: "right", size: 12).opacity(0.4)
+                            }
+                            Text("\(classroom.classType.localizedStatus) · \(classroom.members?.count ?? 0)人 · ¥\(classPrice(classroom).compactNumber)/次/人")
+                                .font(.system(size: 11)).foregroundStyle(MPColor.secondary)
+                        }
+                    }.padding(16)
+
+                    VStack(spacing: 6) {
+                        HStack {
+                            Text(classroom.billingMode == "CASH" ? "累计上课" : "课程进度")
+                                .font(.system(size: 11)).foregroundStyle(MPColor.secondary)
+                            Spacer()
+                            Text(classroom.billingMode == "CASH"
+                                 ? "\(values.filter { $0.status == "COMPLETED" }.count) 次"
+                                 : "\(completed.compactNumber)/\(total.compactNumber)课时")
+                                .font(.system(size: 12, weight: .semibold)).foregroundStyle(tint)
+                        }
+                        if classroom.billingMode != "CASH" {
+                            GeometryReader { proxy in
+                                ZStack(alignment: .leading) {
+                                    Capsule().fill(tint.opacity(0.12))
+                                    Capsule().fill(tint).frame(width: proxy.size.width * progress)
+                                }
+                            }.frame(height: 4)
+                        }
+                    }.padding(.horizontal, 16).padding(.bottom, 12)
+
+                    HStack(spacing: 6) {
+                        MPLegacyImage(name: "time", size: 14)
+                        Text("下次课：\(next?.startsAt.formatted(.dateTime.month().day().weekday(.wide).hour().minute()) ?? "待安排")")
+                            .font(.system(size: 11)).foregroundStyle(MPColor.secondary)
+                        Spacer()
+                    }
+                    .padding(.horizontal, 16).padding(.vertical, 9)
+                    .overlay(alignment: .top) { Rectangle().fill(Color.black.opacity(0.045)).frame(height: 0.5) }
+                }
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 16))
+            .shadow(color: .black.opacity(0.055), radius: 10, y: 3)
+        }.buttonStyle(.plain)
+    }
+
+    private func classPrice(_ classroom: APIClassroom) -> Double {
+        classroom.priceSettings?.price.doubleValue
+            ?? classroom.members?.first?.pricePerHour.doubleValue
+            ?? 0
+    }
+
+    private func classColor(_ classroom: APIClassroom) -> Color {
+        Color.theme.fromHex(classroom.color ?? "#7BA3C0")
     }
 
     private func classroom(_ id: String) -> APIClassroom? { classes.first { $0.id == id } }

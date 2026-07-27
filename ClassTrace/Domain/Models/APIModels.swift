@@ -42,6 +42,9 @@ struct APIStudent: Codable, Identifiable, Hashable, Sendable {
     var name: String
     var gender: String?
     var grade: String?
+    var age: Int?
+    var address: String?
+    var remark: String?
     var status: String
     var guardians: [GuardianLink]?
     var classMembers: [APIClassMember]?
@@ -140,14 +143,27 @@ struct APIAttendanceStats: Codable, Sendable { let total: Int; let counts: [Stri
 
 struct APIHomework: Codable, Identifiable, Hashable, Sendable {
     let id: String; let classId: String; var title: String; var content: String; var dueAt: Date?; var status: String; var classroom: APIClassroomSummary?; var submissions: [APIHomeworkSubmission]?
+    var audienceType: String?
+    var targetStudentIds: [String]?
+    var attachments: [APIHomeworkAttachment]?
 }
+struct APIHomeworkAttachment: Codable, Identifiable, Hashable, Sendable { let id: String; let name: String; let objectKey: String; let mimeType: String; let sizeBytes: Int }
 struct APIHomeworkSubmission: Codable, Identifiable, Hashable, Sendable {
     let id: String; let homeworkId: String; let studentId: String; var content: String?; var status: String; var score: FlexibleDecimal?; var comment: String?; var submittedAt: Date; var student: APIStudent?
 }
 struct APIMaterial: Codable, Identifiable, Hashable, Sendable { let id: String; let classId: String?; let name: String; let objectKey: String; let mimeType: String; let sizeBytes: Int; let category: String?; let createdAt: Date }
-struct APIStudyPlan: Codable, Identifiable, Hashable, Sendable { let id: String; let studentId: String?; var title: String; var description: String?; var status: String; var startsAt: Date?; var endsAt: Date?; var checkIns: [APIPlanCheckIn]? }
+struct APIStudyPlan: Codable, Identifiable, Hashable, Sendable {
+    let id: String; let studentId: String?; var title: String; var description: String?; var status: String; var startsAt: Date?; var endsAt: Date?; var checkIns: [APIPlanCheckIn]?
+    var subject: String?
+    var category: String?
+    var time: String?
+    var deadline: String?
+    var reminder: Bool?
+    var weekDays: [Int]?
+    var remark: String?
+}
 struct APIPlanCheckIn: Codable, Identifiable, Hashable, Sendable { let id: String; let planId: String; let note: String?; let checkedAt: Date }
-struct APIMistake: Codable, Identifiable, Hashable, Sendable { let id: String; let studentId: String?; var subject: String?; var title: String; var content: String?; var answer: String?; var analysis: String?; var tags: [String]; var masteredAt: Date?; let createdAt: Date }
+struct APIMistake: Codable, Identifiable, Hashable, Sendable { let id: String; let studentId: String?; var subject: String?; var title: String; var content: String?; var wrongAnswer: String?; var answer: String?; var analysis: String?; var tags: [String]; var masteredAt: Date?; let createdAt: Date }
 struct APIPoints: Codable, Sendable { let balance: Int; let entries: [APIPointEntry] }
 struct APIPointEntry: Codable, Identifiable, Hashable, Sendable { let id: String; let delta: Int; let reason: String; let createdAt: Date }
 

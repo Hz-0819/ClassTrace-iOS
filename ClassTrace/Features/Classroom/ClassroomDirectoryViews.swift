@@ -53,7 +53,7 @@ struct StudentDirectoryView: View {
         .background(MPColor.page)
         .navigationTitle("学生管理")
         .navigationBarTitleDisplayMode(.inline)
-        .sheet(isPresented: $showCreate) { StudentCreateView { await load() } }
+        .sheet(isPresented: $showCreate) { MiniProgramStudentCreateView { await load() } }
         .task { await load() }
         .refreshable { await load() }
     }
@@ -122,7 +122,7 @@ struct ChildrenDirectoryView: View {
         .toolbar { Button("绑定") { sheet = .bind } }
         .sheet(item: $sheet) { item in
             switch item {
-            case .create: StudentCreateView(linkAsGuardian: true) { await load() }
+            case .create: MiniProgramStudentCreateView(linkAsGuardian: true) { await load() }
             case .bind: GuardianBindView { await load() }
             }
         }
